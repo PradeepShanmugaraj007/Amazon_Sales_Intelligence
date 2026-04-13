@@ -1,0 +1,11 @@
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/health")
+def health_check():
+    return {"status": "healthy", "version": "1.0.0"}
+
+@router.get("/")
+def api_root():
+    return {"status": "active", "message": "SellerIQ Backend API"}
