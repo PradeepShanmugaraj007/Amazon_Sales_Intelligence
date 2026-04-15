@@ -13,6 +13,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
 import LoginSection from "./components/LoginSection";
+import LandingPage from "./components/LandingPage";
 import UploadSection from "./components/UploadSection";
 import Sidebar from "./components/Sidebar";
 import AdminPanel from "./components/AdminPanel";
@@ -617,6 +618,7 @@ function AppContent() {
   const [userRole, setUserRole] = useState(() => sessionStorage.getItem('siq_role')); 
   const [activePlan, setActivePlan] = useState(() => sessionStorage.getItem('siq_plan') || 'starter'); 
   const [state, setState] = useState({ rawData: null, analysis: null, filename: null });
+  const [showLanding, setShowLanding] = useState(() => !sessionStorage.getItem('siq_role'));
 
   // Persist session to session storage
   useEffect(() => {
@@ -632,17 +634,14 @@ function AppContent() {
   useEffect(() => {
     const handleNavigation = () => {
       const hash = window.location.hash.replace('#', '');
-      
-      // LOGOUT LOGIC: Only logout if explicitly navigating to login 
-      // AND we don't have a valid active session in storage (or hash specifically says login)
-      if (hash === 'login') {
+      if (hash === 'home' || hash === '') {
+        if (!userRole) setShowLanding(true);
+      } else if (hash === 'login') {
+         setShowLanding(false);
          setUserRole(null);
          sessionStorage.clear();
       } else if (hash === 'upload') {
          setState({ rawData: null, analysis: null, filename: null });
-      } else if (hash === '' && !userRole) {
-         // If hash is cleared and no session, go to login
-         window.location.hash = 'login';
       }
     };
     window.addEventListener('hashchange', handleNavigation);
@@ -650,13 +649,29 @@ function AppContent() {
     // Initial state setup
     const initialHash = window.location.hash.replace('#', '');
     if (!initialHash) {
-      window.location.hash = userRole ? 'upload' : 'login';
+      window.location.hash = userRole ? 'upload' : 'home';
     } else {
       handleNavigation();
     }
     
     return () => window.removeEventListener('hashchange', handleNavigation);
   }, [userRole]);
+
+  // Show landing page for unauthenticated users
+  if (showLanding && !userRole) {
+    return (
+      <LandingPage
+        onGetStarted={() => {
+          setShowLanding(false);
+          window.location.hash = 'login';
+        }}
+        onLogin={() => {
+          setShowLanding(false);
+          window.location.hash = 'login';
+        }}
+      />
+    );
+  }
 
   if (!userRole) {
     return <LoginSection onLogin={(role, plan) => { 
