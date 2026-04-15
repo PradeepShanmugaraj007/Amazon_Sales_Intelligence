@@ -16,6 +16,16 @@ function parseDate(str) {
   return null;
 }
 
+export const INDIAN_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", 
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", 
+  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", 
+  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", 
+  "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", 
+  "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", 
+  "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+];
+
 export const processData = (rows) => {
   const rowsSafe = (rows || []).filter(Boolean);
 
@@ -100,9 +110,18 @@ export const processData = (rows) => {
 
   // ── State List ───────────────────────────────────────────────────────────
   const byState = {};
+  INDIAN_STATES.forEach(s => {
+    byState[s] = { state: s, revenue: 0, orders: 0, units: 0, igst: 0 };
+  });
+
   shipments.forEach(r => {
-    const st = r["Ship To State"] || r["Bill To State"] || r["State"] || "Unknown";
+    let st = r["Ship To State"] || r["Bill To State"] || r["State"] || "Unknown";
+    
+    // Simple normalization: If the data has "MH", "KA", etc., you might need a map.
+    // However, the user asked to "add all regions", implying they want the list predefined.
+    // If the state from data isn't in our list, add it dynamically too.
     if (!byState[st]) byState[st] = { state: st, revenue: 0, orders: 0, units: 0, igst: 0 };
+    
     byState[st].revenue += Number(r["Invoice Amount"]) || 0;
     byState[st].orders += 1;
     byState[st].units += Number(r["Quantity"]) || 0;
@@ -229,7 +248,7 @@ export const processData = (rows) => {
       skus: Array.from(c.skus),
       sku_breakdown: Object.values(c.sku_breakdown_map),
     };
-  }).filter(c => c.refund_quantity >= 3 || c.refund_count >= 3 || c.skus.size >= 3);
+  }).filter(c => c.refund_quantity >= 1 || c.refund_count >= 1 || c.skus.length >= 1);
 
   const topRisk = [...allRiskEntities]
     .sort((a, b) => b.risk_score - a.risk_score)

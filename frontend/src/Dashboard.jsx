@@ -18,16 +18,59 @@ import Sidebar from "./components/Sidebar";
 import AdminPanel from "./components/AdminPanel";
 import { KpiCard, SectionHeader, Badge, InsightCard } from "./components/UIComponents";
 import FraudAnalysis, { CriticalRiskCard } from "./components/RiskAnalysis";
-import { processData, fmt, colorFor, BRAND, ACCENT, GREEN, RED, PURPLE, TEAL } from "./utils";
+import { processData, fmt, colorFor, BRAND, ACCENT, GREEN, RED, PURPLE, TEAL, INDIAN_STATES } from "./utils";
 import { AppProvider, useAppContext } from "./context/AppContext";
 
 import ShopifyDashboard from "./components/ShopifyDashboard";
 import ERPDashboard from "./components/ERPDashboard";
 
+// ─── UPGRADE BANNER ─────────────────────────────────────────────────────────
+const UpgradeBanner = ({ feature, requiredPlan, color, icon }) => (
+  <div style={{
+    background: `linear-gradient(135deg, ${color}18, ${color}08)`,
+    border: `1px solid ${color}40`,
+    borderRadius: 20,
+    padding: "60px 40px",
+    textAlign: "center",
+    marginTop: 24,
+  }}>
+    <div style={{ fontSize: 56, marginBottom: 20 }}>{icon}</div>
+    <h2 style={{ fontSize: 24, fontWeight: 900, color: "#0f172a", marginBottom: 12 }}>
+      {feature} is not available on your plan
+    </h2>
+    <p style={{ fontSize: 15, color: "#64748b", marginBottom: 32, maxWidth: 480, margin: "0 auto 32px" }}>
+      Upgrade to <strong style={{ color }}>{requiredPlan}</strong> to unlock this feature and get access to advanced analytics, forecasting, and intelligence tools.
+    </p>
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: 10,
+      padding: "14px 32px", borderRadius: 12,
+      background: color, color: "#fff",
+      fontWeight: 800, fontSize: 15,
+      boxShadow: `0 8px 24px ${color}40`,
+    }}>
+      🚀 Upgrade to {requiredPlan}
+    </div>
+    <div style={{ marginTop: 16, fontSize: 13, color: "#94a3b8" }}>
+      Contact us at support@selleriq.pro to upgrade your subscription.
+    </div>
+  </div>
+);
+
 // ─── MAIN DASHBOARD ─────────────────────────────────────────────────────────
 const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset }) => {
   const { dataset, updateDataset } = useAppContext();
-  const KNOWN_TABS = ["overview", "sku", "regions", "tax", "fraud", "forecast", "saas", "about", "support"];
+
+  // Plan-based tab access rules
+  const planOrder = { starter: 0, pro: 1, enterprise: 2 };
+  const canAccess = (minPlan) => (planOrder[activePlan] || 0) >= (planOrder[minPlan] || 0);
+
+  const ALL_TABS = ["overview", "sku", "regions", "tax", "fraud", "forecast", "saas", "about", "support"];
+  const LOCKED_TABS = [
+    ...(canAccess('pro') ? [] : ['fraud', 'forecast']),
+    ...(canAccess('enterprise') ? [] : ['saas']),
+  ];
+  const KNOWN_TABS = ALL_TABS;
+
   const [activeTab, setActiveTabState] = useState(() => {
     const hash = window.location.hash.replace('#', '');
     return KNOWN_TABS.includes(hash) ? hash : "overview";
@@ -37,7 +80,8 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
     const handlePopState = () => {
       const hash = window.location.hash.replace('#', '');
       if (KNOWN_TABS.includes(hash)) {
-        setActiveTabState(hash);
+        // Redirect to overview if locked tab is accessed directly
+        setActiveTabState(LOCKED_TABS.includes(hash) ? "overview" : hash);
       }
     };
     window.addEventListener('hashchange', handlePopState);
@@ -45,6 +89,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
   }, []);
   
   const setActiveTab = (tabId) => {
+    if (LOCKED_TABS.includes(tabId)) return; // Block locked tabs
     const valid = KNOWN_TABS.includes(tabId) ? tabId : "overview";
     window.location.hash = valid;
     setActiveTabState(valid); 
@@ -66,12 +111,8 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
     }
   }, [filename, rawData, updateDataset]);
 
-  const orderLimit = activePlan === 'starter' ? 5000 : activePlan === 'pro' ? 25000 : Infinity;
-  const isTruncated = rawData && rawData.length > orderLimit;
-
   const filtered = useMemo(() => {
     let d = rawData || [];
-    if (isTruncated) d = d.slice(0, orderLimit); // Enforce SaaS Plan limits
 
     if (dateRange === "7d") { const c = new Date(); c.setDate(c.getDate() - 7); d = d.filter(r => r._isoDate >= c); }
     if (startDate) { const sd = new Date(startDate); d = d.filter(r => r._isoDate && r._isoDate >= sd); }
@@ -79,7 +120,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
     if (skuFilter) d = d.filter(r => (r["Sku"] || "").toLowerCase().includes(skuFilter.toLowerCase()) || (r["Item Description"] || "").toLowerCase().includes(skuFilter.toLowerCase()));
     if (stateFilter !== "all") d = d.filter(r => r["Ship To State"] === stateFilter);
     return d;
-  }, [rawData, dateRange, skuFilter, stateFilter, startDate, endDate, isTruncated, orderLimit]);
+  }, [rawData, dateRange, skuFilter, stateFilter, startDate, endDate]);
 
   const stats = useMemo(() => processData(filtered), [filtered]);
 
@@ -103,7 +144,6 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
   };
 
   const generatePDF = async () => {
-    if (activePlan === 'starter') return; // Gate feature
     setIsExporting(true);
     
     // Give React time to physically render all charts un-collapsed
@@ -139,15 +179,9 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
 
   return (
     <div style={styles.container}>
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} stats={stats} onReset={onReset} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} stats={stats} onReset={onReset} activePlan={activePlan} />
 
       <div style={styles.main} id="dashboard-export-area">
-        {isTruncated && (
-          <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", padding: "12px 20px", borderRadius: 8, marginBottom: 24, fontSize: 13, color: "#92400e", display: "flex", alignItems: "center", gap: 10 }}>
-            <AlertTriangle size={16} color="#f59e0b" />
-            <b>SaaS Plan Limit Exceeded:</b> You uploaded {rawData.length.toLocaleString()} records, but your {activePlan.toUpperCase()} plan restricts processing to {orderLimit.toLocaleString()} records. Upgrade your plan for complete analysis.
-          </div>
-        )}
 
         <div style={styles.header}>
           <div>
@@ -176,14 +210,14 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
                onClick={generatePDF} 
                style={{ 
                  padding: "8px 16px", borderRadius: 8, border: "none", 
-                 background: activePlan === 'starter' ? "#e2e8f0" : BRAND, 
-                 color: activePlan === 'starter' ? "#94a3b8" : "#fff", 
-                 fontSize: 13, fontWeight: 700, cursor: activePlan === 'starter' ? "not-allowed" : "pointer",
+                 background: BRAND, 
+                 color: "#fff", 
+                 fontSize: 13, fontWeight: 700, cursor: "pointer",
                  display: "flex", alignItems: "center", gap: 8 
                }}
-               title={activePlan === 'starter' ? "Upgrade to Pro to export PDF" : "Download Report"}
+               title="Download PDF Report"
             >
-               <Download size={16} /> PDF Export {activePlan === 'starter' && <span style={{fontSize: 10, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, marginLeft: 4, border: "1px solid #cbd5e1" }}>PRO</span>}
+               <Download size={16} /> PDF Export
             </button>
           </div>
         </div>
@@ -195,6 +229,13 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
               <select style={styles.select} value={dateRange} onChange={e => setDateRange(e.target.value)}>
                 <option value="all">Lifetime</option>
                 <option value="7d">Last 7d</option>
+              </select>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 800 }}>State:</span>
+              <select style={styles.select} value={stateFilter} onChange={e => setStateFilter(e.target.value)}>
+                <option value="all">All Regions</option>
+                {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
@@ -298,7 +339,11 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
         {(activeTab === "fraud" || isExporting) && (
            <div style={{ marginTop: isExporting ? 60 : 0 }}>
              {isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 30, color: "#0f172a" }}>3. Threat Intelligence</h2>}
-             <FraudAnalysis session_id={session_id} />
+             {canAccess('pro') ? (
+               <FraudAnalysis session_id={session_id} />
+             ) : (
+               <UpgradeBanner feature="Risk & Fraud Detection" requiredPlan="Pro" color="#a855f7" icon="🛡️" />
+             )}
            </div>
         )}
 
@@ -375,6 +420,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
 
         {/* 💎 SAAS HUB & TRANSACTION PATHWAY */}
         {!isExporting && activeTab === "saas" && (
+          canAccess('enterprise') ? (
           <div className="page-container">
             <div style={{ ...styles.card, background: `linear-gradient(135deg, ${BRAND}, #1e293b)`, color: "#fff", padding: "40px 48px", border: "none" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -437,25 +483,36 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, onReset 
               </div>
             </div>
           </div>
+          ) : (
+            <UpgradeBanner feature="SaaS Hub & Transaction Pathway" requiredPlan="Enterprise" color="#f59e0b" icon="💎" />
+          )
         )}
 
         {(activeTab === "forecast" || isExporting) && stats && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginTop: isExporting ? 60 : 0 }}>
               <div style={{ gridColumn: "1 / -1" }}>{isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 10, color: "#0f172a" }}>6. Algorithmic Forecasting</h2>}</div>
-              <div style={styles.card}>
-                 <SectionHeader title="🔮 Revenue Forecast" sub="Modeling future growth" />
-                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                    <KpiCard label="Next 7 Days" value={fmt(stats.forecast7)} color={BRAND} icon="📅" />
-                    <KpiCard label="Next 30 Days" value={fmt(stats.forecast30)} color={PURPLE} icon="📅" />
-                    <KpiCard label="Next 90 Days" value={fmt(stats.forecast90)} color={GREEN} icon="📅" />
-                 </div>
-              </div>
-              <div style={styles.card}>
-                <SectionHeader title="📈 Historical Trend" />
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={stats.weeklySales || []}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="week" hide/><YAxis hide/><Tooltip/><Line type="monotone" dataKey="revenue" stroke={BRAND} strokeWidth={4} dot={false}/></LineChart>
-                </ResponsiveContainer>
-              </div>
+              {canAccess('pro') ? (
+                <>
+                  <div style={styles.card}>
+                     <SectionHeader title="🔮 Revenue Forecast" sub="Modeling future growth" />
+                     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                        <KpiCard label="Next 7 Days" value={fmt(stats.forecast7)} color={BRAND} icon="📅" />
+                        <KpiCard label="Next 30 Days" value={fmt(stats.forecast30)} color={PURPLE} icon="📅" />
+                        <KpiCard label="Next 90 Days" value={fmt(stats.forecast90)} color={GREEN} icon="📅" />
+                     </div>
+                  </div>
+                  <div style={styles.card}>
+                    <SectionHeader title="📈 Historical Trend" />
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={stats.weeklySales || []}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="week" hide/><YAxis hide/><Tooltip/><Line type="monotone" dataKey="revenue" stroke={BRAND} strokeWidth={4} dot={false}/></LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              ) : (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <UpgradeBanner feature="Revenue Forecasting & Predictions" requiredPlan="Pro" color="#a855f7" icon="📈" />
+                </div>
+              )}
             </div>
         )}
 
@@ -557,31 +614,49 @@ class ErrorBoundary extends React.Component {
 }
 
 function AppContent() {
-  const [userRole, setUserRole] = useState(null); // 'user' or 'admin'
-  const [activePlan, setActivePlan] = useState('starter'); // 'starter', 'pro', 'enterprise'
+  const [userRole, setUserRole] = useState(() => sessionStorage.getItem('siq_role')); 
+  const [activePlan, setActivePlan] = useState(() => sessionStorage.getItem('siq_plan') || 'starter'); 
   const [state, setState] = useState({ rawData: null, analysis: null, filename: null });
+
+  // Persist session to session storage
+  useEffect(() => {
+    if (userRole) {
+      sessionStorage.setItem('siq_role', userRole);
+      sessionStorage.setItem('siq_plan', activePlan);
+    } else {
+      sessionStorage.removeItem('siq_role');
+      sessionStorage.removeItem('siq_plan');
+    }
+  }, [userRole, activePlan]);
 
   useEffect(() => {
     const handleNavigation = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash === '' || hash === 'login') {
+      
+      // LOGOUT LOGIC: Only logout if explicitly navigating to login 
+      // AND we don't have a valid active session in storage (or hash specifically says login)
+      if (hash === 'login') {
          setUserRole(null);
+         sessionStorage.clear();
       } else if (hash === 'upload') {
          setState({ rawData: null, analysis: null, filename: null });
+      } else if (hash === '' && !userRole) {
+         // If hash is cleared and no session, go to login
+         window.location.hash = 'login';
       }
     };
     window.addEventListener('hashchange', handleNavigation);
     
-    // Ensure initial state matches hash on mount
+    // Initial state setup
     const initialHash = window.location.hash.replace('#', '');
     if (!initialHash) {
-       window.history.replaceState(null, '', '#login');
+      window.location.hash = userRole ? 'upload' : 'login';
     } else {
-       handleNavigation(); // Sync state with hash on hard refresh
+      handleNavigation();
     }
     
     return () => window.removeEventListener('hashchange', handleNavigation);
-  }, []);
+  }, [userRole]);
 
   if (!userRole) {
     return <LoginSection onLogin={(role, plan) => { 
@@ -599,7 +674,7 @@ function AppContent() {
   }
   
   if (!state.rawData) {
-    return <UploadSection onData={(res, filename, source) => {
+    return <UploadSection activePlan={activePlan} onData={(res, filename, source) => {
       setState({ rawData: res.rawData, analysis: res.analysis, filename, source, session_id: res.session_id });
       window.location.hash = 'overview';
     }} />;

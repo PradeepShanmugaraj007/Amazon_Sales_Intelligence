@@ -2,7 +2,21 @@ import React, { useState } from "react";
 import { analyzeReport } from "../api";
 import { UploadCloud, Cpu, ShieldAlert, FileSpreadsheet, Lock, Box, ShoppingCart, Database, CheckCircle2, Activity } from "lucide-react";
 
-const UploadSection = ({ onData }) => {
+const UploadSection = ({ onData, activePlan = 'starter' }) => {
+  const PLAN_LIMITS = { starter: 3, pro: 9, enterprise: 30 };
+  const fileLimit = PLAN_LIMITS[activePlan] ?? 3;
+
+  // Track monthly upload count in localStorage
+  const getUploadKey = () => {
+    const now = new Date();
+    return `selleriq_uploads_${activePlan}_${now.getFullYear()}_${now.getMonth() + 1}`;
+  };
+  const getUploadCount = () => parseInt(localStorage.getItem(getUploadKey()) || '0', 10);
+  const incrementUploadCount = () => {
+    const key = getUploadKey();
+    localStorage.setItem(key, String(getUploadCount() + 1));
+  };
+
   const [drag, setDrag] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -11,6 +25,14 @@ const UploadSection = ({ onData }) => {
 
   const handleFile = async (file) => {
     if (!file) return;
+
+    // Check monthly upload limit
+    const used = getUploadCount();
+    if (used >= fileLimit) {
+      setMsg(`⚠️ Monthly upload limit reached (${fileLimit} files/${activePlan} plan). Upgrade your plan or wait until next month.`);
+      return;
+    }
+
     setLoading(true); 
     setMsg("Authenticating data source...");
     setMigrationStatus(15);
@@ -26,6 +48,7 @@ const UploadSection = ({ onData }) => {
       if (result.success) {
         setMigrationStatus(100);
         setMsg("Migration complete. Finalizing workspace...");
+        incrementUploadCount(); // count successful upload
         // Re-hydrate Date objects after JSON serialization
         if (result.rawData) {
           result.rawData.forEach(r => {
@@ -42,12 +65,6 @@ const UploadSection = ({ onData }) => {
       if(hasError) setLoading(false); 
     }
   };
-
-  const MIGRATION_PLANS = [
-    { id: 'amazon', name: 'Amazon MTR', icon: <Box size={24} />, desc: 'Native integration for B2B/B2C analytics.' },
-    { id: 'shopify', name: 'Shopify Export', icon: <ShoppingCart size={24} />, desc: 'Standardize direct-to-consumer data.' },
-    { id: 'custom', name: 'Custom ERP', icon: <Database size={24} />, desc: 'Map your own normalized CSV sheets.' }
-  ];
 
   return (
     <>
@@ -70,8 +87,8 @@ const UploadSection = ({ onData }) => {
         }
 
         .migration-sources {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          display: flex;
+          justify-content: center;
           gap: 20px;
           width: 100%;
           max-width: 900px;
@@ -87,6 +104,8 @@ const UploadSection = ({ onData }) => {
           transition: all 0.3s ease;
           position: relative;
           overflow: hidden;
+          width: 100%;
+          max-width: 360px;
         }
         
         .source-card:hover {
@@ -224,25 +243,48 @@ const UploadSection = ({ onData }) => {
           <h1 style={{ fontSize: 42, fontWeight: 800, marginBottom: 16, letterSpacing: "-0.02em" }}>
             Data Migration <span style={{ color: "#a855f7" }}>Portal</span>
           </h1>
-          <p style={{ fontSize: 16, color: "#94a3b8", lineHeight: 1.6 }}>
-            Select your migration plan and securely upload your bulk data exports to instantiate the analytics engine.
+          <p style={{ fontSize: 16, color: "#94a3b8", lineHeight: 1.6, maxWidth: 640, margin: "0 auto" }}>
+            Securely upload your bulk Amazon MTR data exports to instantiate the pipeline. Our proprietary intelligence engine will automatically:
           </p>
+          <div style={{ display: 'inline-flex', flexDirection: 'column', textAlign: 'left', marginTop: 24, gap: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '24px 32px', borderRadius: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#e2e8f0', fontSize: 15 }}>
+              <Box size={20} color="#818cf8" />
+              <span>Normalize raw schemas for rich <b>B2B & B2C analytics</b></span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#e2e8f0', fontSize: 15 }}>
+              <ShieldAlert size={20} color="#f43f5e" />
+              <span>Isolate critical <b>threat intelligence & fraud vectors</b></span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#e2e8f0', fontSize: 15 }}>
+              <Activity size={20} color="#10b981" />
+              <span>Map <b>state-level revenue</b> and velocity trends</span>
+            </div>
+          </div>
+          {/* Plan upload quota badge */}
+          {(() => {
+            const used = getUploadCount();
+            const remaining = Math.max(0, fileLimit - used);
+            const pct = Math.min(100, (used / fileLimit) * 100);
+            const planColors = { starter: '#64748b', pro: '#a855f7', enterprise: '#f59e0b' };
+            const planColor = planColors[activePlan] || '#64748b';
+            return (
+              <div style={{ marginTop: 20, display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '16px 28px', borderRadius: 16, background: `${planColor}18`, border: `1px solid ${planColor}40` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: planColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{activePlan} Plan</span>
+                  <span style={{ fontSize: 12, color: '#94a3b8' }}>•</span>
+                  <span style={{ fontSize: 13, color: '#94a3b8' }}>
+                    <b style={{ color: remaining === 0 ? '#ef4444' : '#e2e8f0' }}>{remaining}</b> / {fileLimit} uploads remaining this month
+                  </span>
+                </div>
+                <div style={{ width: 220, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: remaining === 0 ? '#ef4444' : planColor, borderRadius: 10, transition: 'width 0.4s' }} />
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
-        <div className="migration-sources" style={{ opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto' }}>
-          {MIGRATION_PLANS.map(plan => (
-            <div 
-              key={plan.id} 
-              className={`source-card ${source === plan.id ? 'active' : ''}`}
-              onClick={() => setSource(plan.id)}
-            >
-              {source === plan.id && <CheckCircle2 size={20} color="#818cf8" style={{ position: 'absolute', top: 20, right: 20 }} />}
-              <div className="source-icon">{plan.icon}</div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 8px" }}>{plan.name}</h3>
-              <p style={{ fontSize: 13, color: "#94a3b8", margin: 0, lineHeight: 1.5 }}>{plan.desc}</p>
-            </div>
-          ))}
-        </div>
+
 
         <div 
           className={`drop-zone ${drag ? 'active' : ''}`}
@@ -284,27 +326,9 @@ const UploadSection = ({ onData }) => {
         )}
 
         <div className="feature-grid">
-          {source === 'amazon' && (
-            <>
-              <div className="mini-feature"><ShieldAlert size={20} color="#6366f1" /><span>End-to-End Encryption protocol active.</span></div>
-              <div className="mini-feature"><FileSpreadsheet size={20} color="#a855f7" /><span>Automated schema normalization.</span></div>
-              <div className="mini-feature"><Lock size={20} color="#10b981" /><span>Enterprise SOC-2 compliance enforced.</span></div>
-            </>
-          )}
-          {source === 'shopify' && (
-            <>
-              <div className="mini-feature"><ShoppingCart size={20} color="#6366f1" /><span>Direct-to-Consumer flow analysis.</span></div>
-              <div className="mini-feature"><Activity size={20} color="#a855f7" /><span>Cart abandonment & checkout optimization.</span></div>
-              <div className="mini-feature"><Database size={20} color="#10b981" /><span>Customer lifetime value tracking active.</span></div>
-            </>
-          )}
-          {source === 'custom' && (
-            <>
-              <div className="mini-feature"><Database size={20} color="#6366f1" /><span>Dynamic manual schema mapping engine.</span></div>
-              <div className="mini-feature"><Box size={20} color="#a855f7" /><span>Wholesale volume & supply chain tracking.</span></div>
-              <div className="mini-feature"><Lock size={20} color="#10b981" /><span>Secure on-premise dataset containerization.</span></div>
-            </>
-          )}
+           <div className="mini-feature"><ShieldAlert size={20} color="#6366f1" /><span>End-to-End Encryption protocol active.</span></div>
+           <div className="mini-feature"><FileSpreadsheet size={20} color="#a855f7" /><span>Automated schema normalization.</span></div>
+           <div className="mini-feature"><Lock size={20} color="#10b981" /><span>Enterprise SOC-2 compliance enforced.</span></div>
         </div>
 
       </div>

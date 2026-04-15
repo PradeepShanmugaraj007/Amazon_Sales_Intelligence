@@ -58,7 +58,7 @@ function TransactionTable({ transactions }) {
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
         <thead>
           <tr style={{ background: 'var(--bg-primary)' }}>
-            {['Date', 'Order ID', 'SKU', 'HSN/SAC', 'Qty', 'Amount (₹)'].map(h => (
+            {['Date', 'Order ID', 'Refund ID', 'SKU', 'HSN/SAC', 'Qty', 'Amount (₹)'].map(h => (
               <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{h}</th>
             ))}
           </tr>
@@ -68,6 +68,7 @@ function TransactionTable({ transactions }) {
             <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', background: i % 2 === 0 ? 'white' : 'var(--bg-primary)' }}>
               <td style={{ padding: '8px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{t['Invoice Date']?.slice(0, 10) || '-'}</td>
               <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.75rem' }}>{t['Order Id'] || '-'}</td>
+              <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.75rem' }}>{t['Refund Id'] || '-'}</td>
               <td style={{ padding: '8px 12px', fontWeight: 500, color: 'var(--accent-secondary)' }}>{t['Sku'] || '-'}</td>
               <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t['Hsn/sac'] || '-'}</td>
               <td style={{ padding: '8px 12px', fontWeight: 700 }}>{Math.abs(parseFloat(t['Quantity']) || 1)}</td>
@@ -360,9 +361,79 @@ function HighQuantityRefunders({ data }) {
   );
 }
 
+function CustomerTable({ customers }) {
+  if (!customers || customers.length === 0) return <div style={{ color: 'var(--text-secondary)', padding: '12px 0' }}>No customers found.</div>;
+  return (
+    <div style={{ overflowX: 'auto', marginTop: 8 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+        <thead>
+          <tr style={{ background: 'var(--bg-primary)' }}>
+            {['Rank', 'Customer / Region', 'SKUs (Num)', 'Orders', 'Units', 'Amount (₹)', 'Risk'].map(h => (
+              <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {customers.map((c, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+              <td style={{ padding: '12px 16px', fontWeight: 800 }}>#{c.rank || i + 1}</td>
+              <td style={{ padding: '12px 16px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.customer_id}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>{c.city}, {c.state}</div>
+              </td>
+              <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{(c.skus || []).length}</td>
+              <td style={{ padding: '12px 16px', fontWeight: 600 }}>{c.refund_count}</td>
+              <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--warning)' }}>{c.refund_quantity}</td>
+              <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--danger)' }}>₹{Math.floor(c.total_refund_amount).toLocaleString('en-IN')}</td>
+              <td style={{ padding: '12px 16px' }}>
+                <span style={{ padding: '4px 8px', borderRadius: 4, fontSize: '0.7rem', fontWeight: 800, background: c.risk_label === 'CRITICAL' ? '#fef2f2' : c.risk_label === 'HIGH' ? '#fffbeb' : '#eff6ff', color: c.risk_label === 'CRITICAL' ? '#dc2626' : c.risk_label === 'HIGH' ? '#d97706' : '#3b82f6' }}>
+                  {c.risk_label}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FullDataModal({ type, fullData, onClose }) {
+  if (!fullData) return null;
+  const isCust = type === 'customers';
+  const title = isCust ? 'Risk Entity Summary' : 'Comprehensive Refund Ledger';
+  const subtitle = isCust ? 'Full list of aggregated entity risks' : 'All raw individual return transactions';
+  const list = isCust ? (fullData.allRiskSummaries || fullData.topRisk || []) : (fullData.allReturnTransactions || []);
+
+  // Sort transactions by date descending mostly
+  const sortedList = [...list];
+  if (!isCust) {
+    sortedList.sort((a, b) => new Date(b['Invoice Date'] || 0) - new Date(a['Invoice Date'] || 0));
+  }
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backdropFilter: 'blur(4px)' }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 16, width: '90%', maxWidth: 1000, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>{title}</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{subtitle} ({list.length} records)</p>
+          </div>
+          <button onClick={onClose} style={{ padding: '8px 16px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Close</button>
+        </div>
+        <div style={{ padding: '24px 32px', overflowY: 'auto', flex: 1 }}>
+          {isCust ? <CustomerTable customers={sortedList} /> : <TransactionTable transactions={sortedList} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FraudAnalysis({ session_id }) {
   const { dataset } = useAppContext();
   const [data, setData] = useState([]);
+  const [fullData, setFullData] = useState(null);
+  const [activeModal, setActiveModal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -378,12 +449,17 @@ export default function FraudAnalysis({ session_id }) {
           if (endDate) params.append('end_date', endDate);
           
           const res = await api.get(`/refunds/fraud?${params.toString()}`);
-          if (Array.isArray(res)) {
+          setFullData(res);
+          if (res && res.topRisk) {
+            setData(res.topRisk);
+          } else if (Array.isArray(res)) {
             setData(res);
           } else {
             setData([]);
           }
+
         } else {
+          setFullData(null);
           setData([]);
         }
       } catch (error) {
@@ -431,12 +507,15 @@ export default function FraudAnalysis({ session_id }) {
       {!loading && data.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
           {[
-            { label: 'Critical Customers Found', value: data.length, icon: <AlertTriangle size={18} color="var(--danger)" />, color: 'var(--danger)' },
-            { label: 'Total Units Returned', value: totalRefundQty.toLocaleString(), icon: <Package size={18} color="var(--warning)" />, color: 'var(--warning)' },
-            { label: 'Total Refund Value', value: `₹${totalRefundAmt.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: <RotateCcw size={18} color="var(--danger)" />, color: 'var(--danger)' },
-            { label: 'Refund Transactions', value: totalOrders.toLocaleString(), icon: <User size={18} color="var(--accent-secondary)" />, color: 'var(--accent-secondary)' },
+            { id: 'customers', label: 'Critical Customers Found', value: data.length, icon: <AlertTriangle size={18} color="var(--danger)" />, color: 'var(--danger)' },
+            { id: 'transactions', label: 'Total Units Returned', value: totalRefundQty.toLocaleString(), icon: <Package size={18} color="var(--warning)" />, color: 'var(--warning)' },
+            { id: 'transactions', label: 'Total Refund Value', value: `₹${totalRefundAmt.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: <RotateCcw size={18} color="var(--danger)" />, color: 'var(--danger)' },
+            { id: 'transactions', label: 'Refund Transactions', value: totalOrders.toLocaleString(), icon: <User size={18} color="var(--accent-secondary)" />, color: 'var(--accent-secondary)' },
           ].map((m, i) => (
-            <div key={i} className="glass" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div key={i} className="glass" onClick={() => setActiveModal(m.id)}
+                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)'; }}
+                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 20px 40px -20px rgba(0,0,0,0.05)'; }}
+                 style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'all 0.2s' }}>
               <div style={{ background: 'var(--bg-primary)', padding: 8, borderRadius: 8, flexShrink: 0 }}>{m.icon}</div>
               <div>
                 <div style={{ fontSize: '1.3rem', fontWeight: 800, color: m.color }}>{m.value}</div>
@@ -446,6 +525,8 @@ export default function FraudAnalysis({ session_id }) {
           ))}
         </div>
       )}
+
+      {activeModal && <FullDataModal type={activeModal} fullData={fullData} onClose={() => setActiveModal(null)} />}
 
       {/* Info Banner */}
       <div className="glass" style={{ padding: '14px 20px', borderLeft: '4px solid var(--danger)', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>

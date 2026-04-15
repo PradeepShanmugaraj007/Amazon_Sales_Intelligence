@@ -12,9 +12,9 @@ const loadRazorpay = () => new Promise((resolve) => {
 });
 
 const SaaS_PLANS = [
-  { id: 'starter', name: 'Starter', price: 2999, features: ['3 files allowed / month', 'Up to 5,000 orders/mo', 'Basic Analytics', 'Email Support'] },
-  { id: 'pro', name: 'Pro', price: 5999, recommended: true, features: ['9 files allowed / month', 'Up to 25,000 orders/mo', 'Advanced Fraud AI', '24/7 Priority Support'] },
-  { id: 'enterprise', name: 'Enterprise', price: 14999, features: ['30 files allowed / month', 'Unlimited orders', 'Custom Modeling', '24/7 Call Support'] }
+  { id: 'starter', name: 'Starter', price: 2999, features: ['3 files allowed / month', 'Basic Analytics', 'Standard Reports', 'Email Support'] },
+  { id: 'pro', name: 'Pro', price: 5999, recommended: true, features: ['9 files allowed / month', 'Advanced Fraud AI', 'Revenue Forecasting', '24/7 Priority Support'] },
+  { id: 'enterprise', name: 'Enterprise', price: 14999, features: ['30 files allowed / month', 'SaaS Integration Hub', 'Custom Modeling', '24/7 Call Support'] }
 ];
 
 const LoginSection = ({ onLogin }) => {
@@ -24,7 +24,9 @@ const LoginSection = ({ onLogin }) => {
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [msg, setMsg] = useState("");
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [targetPlan, setTargetPlan] = useState('starter');
 
   const resetForm = (newView) => {
     setView(newView);
@@ -32,6 +34,7 @@ const LoginSection = ({ onLogin }) => {
     setPass("");
     setErr("");
     setIsLoading(false);
+    setMsg("");
   };
 
   const handleAdminLogin = (e) => {
@@ -57,12 +60,20 @@ const LoginSection = ({ onLogin }) => {
     setTimeout(() => {
       // UNIVERSAL BYPASS: Allow any correctly formatted email to act as a demo login
       if (user.includes("@") && pass.length >= 4) {
-        onLogin("user", "enterprise"); // Default to enterprise plan for the demo payload
+        setMsg("Authenticating...");
+        setTimeout(() => {
+           setMsg("Securing Session...");
+           const mockToken = "siq_tk_" + Math.random().toString(36).substr(2, 9);
+           sessionStorage.setItem("siq_auth_token", mockToken);
+           setTimeout(() => {
+              onLogin("user", targetPlan || 'starter');
+           }, 800);
+        }, 800);
       } else {
         setErr("Please enter a strictly valid Workspace Email and Passkey.");
         setIsLoading(false);
       }
-    }, 800);
+    }, 400);
   };
 
   const handlePayment = async (plan) => {
@@ -270,9 +281,21 @@ const LoginSection = ({ onLogin }) => {
                         onClick={() => handlePayment(plan)}
                         className={`subscribe-btn ${plan.recommended ? 'btn-primary' : 'btn-outline'}`}
                         disabled={selectedPlan === plan.id}
+                        style={{ marginBottom: 12 }}
                       >
-                        {selectedPlan === plan.id ? "Connecting..." : "Subscribe Now"}
+                        {selectedPlan === plan.id ? "Connecting..." : "Activate Now"}
                         {!selectedPlan && <CreditCard size={18} />}
+                      </button>
+
+                      <button 
+                        onClick={() => onLogin("user", plan.id)}
+                        style={{ 
+                          background: "none", border: "1px solid rgba(255,255,255,0.1)", 
+                          color: "rgba(255,255,255,0.4)", fontSize: 11, padding: "8px", 
+                          borderRadius: 8, cursor: "pointer", fontWeight: 700 
+                        }}
+                      >
+                        Bypass to Demo Access
                       </button>
                     </div>
                   ))}
@@ -304,15 +327,29 @@ const LoginSection = ({ onLogin }) => {
                     <User size={22} className="input-icon" />
                     <input type="email" className="custom-input" placeholder="Work Email Address" value={user} onChange={e => setUser(e.target.value)} required />
                   </div>
-                  <div className="input-group" style={{ marginBottom: 32 }}>
+                  <div className="input-group" style={{ marginBottom: 24 }}>
                     <Lock size={22} className="input-icon" />
                     <input type="password" className="custom-input" placeholder="Workspace Passkey" value={pass} onChange={e => setPass(e.target.value)} required />
+                  </div>
+
+                  <div className="input-group" style={{ marginBottom: 32 }}>
+                    <label style={{ display: "block", color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 800, marginBottom: 8, letterSpacing: 1 }}>SELECT TESTING DOMAIN</label>
+                    <select 
+                      className="custom-input" 
+                      style={{ paddingLeft: 20, appearance: "none" }}
+                      value={targetPlan}
+                      onChange={e => setTargetPlan(e.target.value)}
+                    >
+                      <option value="starter" style={{ background: "#0f172a" }}>Starter Workspace (Basic)</option>
+                      <option value="pro" style={{ background: "#0f172a" }}>Pro Domain (Risk + Fraud)</option>
+                      <option value="enterprise" style={{ background: "#0f172a" }}>Enterprise Node (Full SaaS Hub)</option>
+                    </select>
                   </div>
 
                   {err && (<div style={{ color: "#fca5a5", fontSize: 13, fontWeight: 600, marginBottom: 24, textAlign: "center", background: "rgba(239, 68, 68, 0.15)", padding: "12px", borderRadius: "12px", border: "1px solid rgba(239, 68, 68, 0.3)", animation: "fadeIn 0.3s ease" }}>{err}</div>)}
 
                   <button type="submit" className="auth-btn" disabled={isLoading}>
-                    {isLoading ? "Authenticating..." : "Login to Domain"}
+                    {isLoading ? (msg || "Authenticating...") : "Login to Domain"}
                     {!isLoading && <ArrowRight size={20} />}
                   </button>
                 </form>

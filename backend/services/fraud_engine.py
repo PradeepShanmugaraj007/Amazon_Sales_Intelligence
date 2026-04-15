@@ -62,7 +62,7 @@ def generate_fraud_alerts(returns):
         
     allRiskEntities = []
     for c in customers.values():
-        if c["refund_quantity"] >= 3 or c["refund_count"] >= 3:
+        if c["refund_quantity"] >= 1 or c["refund_count"] >= 1:
             volumeScore = min(100, (c["refund_quantity"] / 10) * 100)
             frequencyScore = min(100, (c["refund_count"] / 5) * 100)
             
@@ -72,6 +72,7 @@ def generate_fraud_alerts(returns):
             
             internal_sort = baseScore
             if c["refund_quantity"] >= 3 or max_sku_qty >= 3:
+
                 baseScore = 100
                 internal_sort = 2000 + c["refund_quantity"] * 10
             elif c["refund_count"] >= 3:
@@ -94,16 +95,45 @@ def generate_fraud_alerts(returns):
                     
             allRiskEntities.append(ent)
             
-    topRisk = sorted(allRiskEntities, key=lambda x: x["sort_score"], reverse=True)[:10]
+    allSorted = sorted(allRiskEntities, key=lambda x: x["sort_score"], reverse=True)
+    topRisk = allSorted[:10]
     for i, c in enumerate(topRisk):
         c["rank"] = i + 1
-        
-    totalRefundQty = sum(float(r.get("Quantity") or 0) for r in returns)
+    
+    # Build lightweight summaries of ALL risk entities for drill-down
+    allRiskSummaries = []
+    for i, c in enumerate(allSorted):
+        allRiskSummaries.append({
+            "rank": i + 1,
+            "customer_id": c["customer_id"],
+            "city": c["city"],
+            "state": c["state"],
+            "postal_code": c["postal_code"],
+            "gstin": c.get("gstin", "N/A"),
+            "refund_quantity": c["refund_quantity"],
+            "refund_count": c["refund_count"],
+            "total_refund_amount": c["total_refund_amount"],
+            "risk_score": c["risk_score"],
+            "risk_label": c["risk_label"],
+            "first_refund": c.get("first_refund"),
+            "last_refund": c.get("last_refund"),
+            "skus": c.get("skus", []),
+        })
+
+    # Build lightweight list of ALL return transactions for drill-down
+    allReturnTransactions = []
+    for r in returns:
+        cleaned = {k: v for k, v in r.items() if k != "_isoDate"}
+        allReturnTransactions.append(cleaned)
+
+    totalRefundQty = sum(abs(float(r.get("Quantity") or 0)) for r in returns)
     totalRefundValue = sum(abs(float(r.get("Invoice Amount") or 0)) for r in returns)
     totalRefundTransactions = len(returns)
     
     return {
         "topRisk": topRisk, 
+        "allRiskSummaries": allRiskSummaries,
+        "allReturnTransactions": allReturnTransactions,
         "moneyAtRisk": totalRefundValue,
         "totalRefundQty": totalRefundQty,
         "totalAlerts": len(allRiskEntities),

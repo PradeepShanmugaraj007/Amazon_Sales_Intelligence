@@ -13,7 +13,7 @@ def get_refunds_fraud(session_id: str = None, start_date: Optional[str] = None, 
         return []
 
     data_store = session_db[session_id]
-    fraud_data = process_data(data_store["rawData"])["analysis"]["fraud"]["topRisk"]
+    fraud_obj = process_data(data_store["rawData"])["analysis"]["fraud"]
 
     if start_date or end_date:
         try:
@@ -35,6 +35,6 @@ def get_refunds_fraud(session_id: str = None, start_date: Optional[str] = None, 
             filtered_rows.append(r)
 
         re_processed = process_data(filtered_rows)
-        fraud_data = re_processed["analysis"]["fraud"]["topRisk"]
+        fraud_obj = re_processed["analysis"]["fraud"]
 
-    return fraud_data
+    return fraud_obj

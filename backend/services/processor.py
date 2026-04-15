@@ -41,6 +41,8 @@ def parse_uploaded_data(content: str):
             if lower_h in ['buyername','recipientname','customername','shiptoname','billtoname','customer','client']: mapped_key = 'Buyer Name'
             if lower_h in ['gstin','gstinnumber','buyergstin','taxid']: mapped_key = 'Gstin'
             if lower_h in ['returnreason','reason','defecttype','defect']: mapped_key = 'Return Reason'
+            if lower_h in ['returnid', 'refundid', 'amazonreturnid', 'returnorderid']: mapped_key = 'Refund Id'
+
             
             if not val:
                 obj[mapped_key] = None
