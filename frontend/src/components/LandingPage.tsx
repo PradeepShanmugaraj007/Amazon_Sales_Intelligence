@@ -26,19 +26,102 @@ import {
   Layers,
   Activity,
   Code,
-  ShoppingBag
+  ShoppingBag,
+  Terminal,
+  Play
 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { analyzeReport } from '../api';
+import { processData, fmt, BRAND, GREEN } from '../utils';
 import '../landing.css';
+import '../responsive_overrides.css';
 
 interface LandingPageProps {
   onGetStarted: () => void;
+  onTryFree: () => void;
   onLogin: () => void;
 }
-
-export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
+export default function LandingPage({ onGetStarted, onTryFree, onLogin }: LandingPageProps) {
   const [demoText, setDemoText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
+  const [msg, setMsg] = useState('');
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const handleFutureLink = (e: React.MouseEvent) => {
+    e.preventDefault();
+    alert("This page is part of our Enterprise Portal and is currently under active development. Please contact sales for access.");
+  };
+
+  const handleSubscribe = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    alert("Successfully subscribed to SellerIQ Pro insights!");
+  };
+
   const fullText = "Analyze March 2024 Amazon MTR for high-risk tax anomalies...";
+
+  // Interactive Preview Placeholder for Landing Page
+  const LandingDashboardPreview = () => (
+    <div style={{ padding: '2rem' }}>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-indigo-500/10 rounded-2xl">
+            <Activity size={24} className="text-indigo-400" />
+          </div>
+          <div>
+            <div className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Enterprise Intelligence</div>
+            <div className="text-xl font-black">Demo Edition Hub</div>
+          </div>
+        </div>
+        <div className="badge bg-indigo-500/10 text-indigo-400 border-indigo-500/20">Preview Mode</div>
+      </div>
+
+      <div style={{ height: 260, width: '100%', marginBottom: '2rem', background: 'rgba(255,255,255,0.02)', borderRadius: 20, border: '1px border rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+         {/* Simple mockup chart */}
+         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, height: 160 }}>
+            {[60, 40, 80, 50, 90, 70, 95].map((h, i) => (
+              <motion.div 
+                key={i} 
+                initial={{ height: 0 }} 
+                animate={{ height: `${h}%` }} 
+                transition={{ duration: 1.5, delay: i * 0.1 }}
+                style={{ width: 30, background: `linear-gradient(to top, ${BRAND}, #818cf8)`, borderRadius: '8px 8px 0 0', opacity: 0.8 }} 
+              />
+            ))}
+         </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        {[
+          { l: "Revenue Snapshot", v: "₹12.4L", c: BRAND },
+          { l: "Tax Breakdown", v: "₹1.2L", c: "#818cf8" },
+          { l: "SKU Velocity", v: "Hot", c: "#10b981" }
+        ].map((item, i) => (
+          <div key={i} className="p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+            <div style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', color: '#64748b', marginBottom: 8 }}>{item.l}</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: item.c }}>{item.v}</div>
+          </div>
+        ))}
+      </div>
+      
+      <div style={{ marginTop: 24, padding: '16px', borderRadius: 16, background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.1))', border: '1px solid rgba(99,102,241,0.2)', textAlign: 'center' }}>
+         <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+           <b>Instant Analysis</b> is now available in our dedicated Demo Dashboard. 
+           <br/>Upload files up to 1MB and get high-precision results in seconds.
+         </p>
+         <button onClick={onTryFree} className="btn-primary" style={{ marginTop: 12, padding: '0.6rem 1.4rem', fontSize: '0.8rem' }}>Open Demo Dashboard</button>
+      </div>
+    </div>
+  );
+
+  const chartData = [
+    { name: 'Mon', rev: 4000 },
+    { name: 'Tue', rev: 3000 },
+    { name: 'Wed', rev: 6000 },
+    { name: 'Thu', rev: 8000 },
+    { name: 'Fri', rev: 5000 },
+    { name: 'Sat', rev: 9000 },
+    { name: 'Sun', rev: 12000 },
+  ];
 
   useEffect(() => {
     if (isTyping) {
@@ -137,7 +220,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
           </ul>
         </nav>
         <div className="auth-buttons">
-          <button onClick={onLogin} className="btn-outline" style={{ padding: '0.6rem 1.2rem', fontSize: '0.85rem' }}>Sign In</button>
+          <button onClick={onLogin} className="btn-outline">Sign In</button>
           <button onClick={onGetStarted} className="btn-primary">Get Started</button>
         </div>
       </header>
@@ -146,11 +229,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
         <section className="hero">
           <div className="hero-bg-pattern"></div>
           <div className="hero-content fade-in">
-            <div className="trust-badge-group">
-              <Sparkles size={16} />
-              <span>AI-powered • Enterprise-Grade • SOC2 Compliant</span>
-            </div>
-            <div className="badge" style={{ marginBottom: '1.5rem', display: 'inline-block', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)' }}>v2.0 Now Live</div>
+
             <h1>Unify Your Commerce Intelligence.</h1>
             <p>
               The enterprise standard for marketplace data. Transform complex Amazon, Shopify, and ERP data into 
@@ -158,7 +237,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
             </p>
             <div className="hero-actions">
               <button onClick={onGetStarted} className="btn-primary">Deploy Your Intelligence <ArrowRight size={18} style={{ marginLeft: '8px', display: 'inline' }} /></button>
-              <button className="btn-outline" style={{ color: 'var(--text-main)', borderColor: 'var(--glass-border)' }}>Explore Enterprise Demo</button>
+              <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })} className="btn-outline" style={{ color: 'var(--text-main)', borderColor: 'var(--glass-border)', background: 'white' }}>Demo</button>
             </div>
             <div className="flex items-center gap-4" style={{ marginTop: '3rem' }}>
               <div className="flex -space-x-3">
@@ -241,53 +320,34 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
           </div>
         </section>
 
-        <section className="live-demo-section" style={{ padding: '8rem 4rem', background: 'var(--bg-soft)' }}>
-          <div className="section-header" style={{ textAlign: 'center', marginBottom: '4rem' }}>
-            <div className="badge" style={{ marginBottom: '1.5rem' }}>Live Demo</div>
-            <h2 className="section-title">Experience the Intelligence</h2>
-            <p className="section-subtitle">See how SellerIQ Pro processes complex queries in milliseconds.</p>
+        <section id="demo" className="live-demo-section" style={{ padding: '5rem 2rem', background: 'var(--bg-soft)', position: 'relative' }}>
+          <div className="section-glow" style={{ top: '50%', left: '50%', opacity: 0.1 }}></div>
+          <div className="section-header" style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <div className="badge" style={{ marginBottom: '1.5rem' }}>Core Intelligence</div>
+            <h2 className="section-title">The Demo Dashboard</h2>
+            <p className="section-subtitle">Experience how SellerIQ Pro converts raw marketplace noise into analytical signals. <b>Get started with a 1MB Demo Analysis.</b></p>
           </div>
+
           <div className="live-demo-container fade-in-on-scroll">
-            <div className="demo-window">
-              <div className="demo-header">
-                <div className="demo-dot red"></div>
-                <div className="demo-dot yellow"></div>
-                <div className="demo-dot green"></div>
-                <div className="ml-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">SellerIQ Terminal v2.0</div>
-              </div>
-              <div className="demo-body">
-                <div className="demo-input-line">
-                  <span className="demo-prompt">selleriq@admin:~$</span>
-                  <span>{demoText}</span>
-                  <span className="demo-cursor"></span>
+            <div className="demo-window" style={{ 
+              boxShadow: '0 50px 100px -20px rgba(0,0,0,0.25)', 
+              overflow: 'hidden',
+              minHeight: 500
+            }}>
+              <div className="demo-header" style={{ background: '#1e293b' }}>
+                <div className="flex gap-2 mr-4">
+                  <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
                 </div>
-                <AnimatePresence>
-                  {!isTyping && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="demo-response"
-                    >
-                      <div className="flex items-center gap-2 mb-4 text-secondary">
-                        <Check size={16} />
-                        <span className="font-bold">Analysis Complete</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Anomalies Found</div>
-                          <div className="text-xl font-bold text-amber-500">12 High-Risk</div>
-                        </div>
-                        <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                          <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Tax Liability</div>
-                          <div className="text-xl font-bold text-indigo-400">₹4.2L Calculated</div>
-                        </div>
-                      </div>
-                      <div className="mt-4 text-xs text-slate-400 italic">
-                        * Insights generated using SellerIQ Proprietary LLM-Scrubbing Engine.
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Terminal size={12} />
+                  SellerIQ Dashboard Preview
+                </div>
+              </div>
+
+              <div className="demo-body" style={{ background: '#0f172a', color: '#f8fafc', padding: '0', minHeight: 450, position: 'relative' }}>
+                {LandingDashboardPreview()}
               </div>
             </div>
           </div>
@@ -374,7 +434,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
         <div className="section-divider"></div>
 
         <section id="how-it-works" className="how-it-works">
-          <div style={{ textAlign: 'center', marginBottom: '6rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
             <div className="badge" style={{ marginBottom: '1.5rem' }}>Process</div>
             <h2 className="section-title fade-in-on-scroll">How SellerIQ Pro Works</h2>
             <p className="section-subtitle fade-in-on-scroll">Three simple steps to unlock your marketplace intelligence.</p>
@@ -436,7 +496,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
 
         <section id="features" className="features">
           <div className="section-glow"></div>
-          <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
             <div className="badge" style={{ marginBottom: '1.5rem' }}>Capabilities</div>
             <h2 className="section-title fade-in-on-scroll">Enterprise-Grade Features</h2>
             <p className="section-subtitle fade-in-on-scroll">Everything you need to scale your marketplace operations with confidence.</p>
@@ -444,7 +504,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
           <div className="features-grid">
             <div className="feature-card feature-ingestion glass fade-in-on-scroll">
               <div className="feature-image">
-                <img src="https://picsum.photos/seed/data-ingestion/400/250" alt="Data Ingestion" referrerPolicy="no-referrer" />
+                <img src="/feature_data_ingestion_png_1776314911908.png" alt="Data Ingestion" />
               </div>
               <div className="feature-icon"><Database /></div>
               <h3>Data Ingestion</h3>
@@ -452,7 +512,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
             </div>
             <div className="feature-card feature-risk glass fade-in-on-scroll">
               <div className="feature-image">
-                <img src="https://picsum.photos/seed/risk-analysis/400/250" alt="Risk Scrubbing" referrerPolicy="no-referrer" />
+                <img src="/feature_risk_scrubbing_png_1776314928014.png" alt="Risk Scrubbing" />
               </div>
               <div className="feature-icon"><ShieldCheck /></div>
               <h3>Risk Scrubbing</h3>
@@ -460,7 +520,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
             </div>
             <div className="feature-card feature-tax glass fade-in-on-scroll">
               <div className="feature-image">
-                <img src="https://picsum.photos/seed/tax-compliance/400/250" alt="Tax Compliance" referrerPolicy="no-referrer" />
+                <img src="/feature_tax_compliance_png_1776314943200.png" alt="Tax Compliance" />
               </div>
               <div className="feature-icon"><FileText /></div>
               <h3>Tax Compliance</h3>
@@ -468,7 +528,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
             </div>
             <div className="feature-card feature-forecasting glass fade-in-on-scroll">
               <div className="feature-image">
-                <img src="https://picsum.photos/seed/forecasting/400/250" alt="Predictive Forecasting" referrerPolicy="no-referrer" />
+                <img src="/feature_forecasting_png_1776314957403.png" alt="Predictive Forecasting" />
               </div>
               <div className="feature-icon"><TrendingUp /></div>
               <h3>Predictive Forecasting</h3>
@@ -476,7 +536,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
             </div>
             <div className="feature-card feature-scaling glass fade-in-on-scroll">
               <div className="feature-image">
-                <img src="https://picsum.photos/seed/global-scaling/400/250" alt="Global Scaling" referrerPolicy="no-referrer" />
+                <img src="/feature_global_scaling_png_1776314971687.png" alt="Global Scaling" />
               </div>
               <div className="feature-icon"><Globe /></div>
               <h3>Global Scaling</h3>
@@ -484,7 +544,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
             </div>
             <div className="feature-card feature-security glass fade-in-on-scroll">
               <div className="feature-image">
-                <img src="https://picsum.photos/seed/security/400/250" alt="Bank-Level Security" referrerPolicy="no-referrer" />
+                <img src="/feature_security_png_1776314984952.png" alt="Bank-Level Security" />
               </div>
               <div className="feature-icon"><Lock /></div>
               <h3>Bank-Level Security</h3>
@@ -494,7 +554,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
             {/* New Features */}
             <div className="feature-card glass fade-in-on-scroll">
               <div className="feature-image">
-                <img src="https://picsum.photos/seed/realtime/400/250" alt="Real-time Processing" referrerPolicy="no-referrer" />
+                <img src="/feature_realtime_png_1776314998914.png" alt="Real-time Processing" />
               </div>
               <div className="feature-icon"><Activity /></div>
               <h3>Real-time Processing</h3>
@@ -502,7 +562,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
             </div>
             <div className="feature-card glass fade-in-on-scroll">
               <div className="feature-image">
-                <img src="https://picsum.photos/seed/insights/400/250" alt="Data-driven Insights" referrerPolicy="no-referrer" />
+                <img src="/feature_insights_png_1776315017119.png" alt="Data-driven Insights" />
               </div>
               <div className="feature-icon"><PieChart /></div>
               <h3>Data-driven Insights</h3>
@@ -510,7 +570,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
             </div>
             <div className="feature-card glass fade-in-on-scroll">
               <div className="feature-image">
-                <img src="https://picsum.photos/seed/api/400/250" alt="API-ready Integration" referrerPolicy="no-referrer" />
+                <img src="/feature_api_png_1776315031255.png" alt="API-ready Integration" />
               </div>
               <div className="feature-icon"><Code /></div>
               <h3>API-ready Integration</h3>
@@ -522,7 +582,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
         <div className="section-divider"></div>
 
         <section className="use-cases">
-          <div style={{ textAlign: 'center', marginBottom: '6rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
             <div className="badge" style={{ marginBottom: '1.5rem' }}>Use Cases</div>
             <h2 className="section-title">Built for Every Scale</h2>
             <p className="section-subtitle">Tailored solutions for different business needs.</p>
@@ -548,52 +608,42 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
 
         <div className="section-divider"></div>
 
-        <section id="analytics" className="analytics">
+        <section id="analytics" className="analytics" style={{ background: 'white', padding: '5rem 2rem' }}>
           <div className="analytics-content fade-in-on-scroll">
-            <div className="amazon-badge-top">
-              <img 
-                src="https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg" 
-                alt="Amazon" 
-                className="amazon-top-logo"
-                referrerPolicy="no-referrer"
-              />
-              <span>Amazon MTR Data Analysis</span>
-            </div>
-            <h2 className="section-title">Real-time Enterprise Insights</h2>
-            <p className="section-subtitle">
-              Stop flying blind. Our advanced analytics engine processes millions of data points 
-              to give you a crystal clear view of your true profitability.
-            </p>
-            <div className="analytics-preview glass">
-              <div className="preview-header">
-                <div className="flex items-center gap-6">
-                  <div className="amazon-logo-container">
-                    <img 
-                      src="https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg" 
-                      alt="Amazon" 
-                      className="amazon-full-logo"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
-                  <div className="divider-v"></div>
-                  <div className="badge">Amazon MTR Data Analysis</div>
-                </div>
-                <div className="preview-controls">
-                  <div className="dot"></div>
-                  <div className="dot"></div>
-                  <div className="dot"></div>
-                </div>
+            <div className="section-header" style={{ textAlign: 'center', marginBottom: '3rem' }}>
+              <div className="amazon-badge-top" style={{ marginBottom: '2rem' }}>
+                <img 
+                  src="https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg" 
+                  alt="Amazon" 
+                  className="amazon-top-logo"
+                />
+                <span className="font-black text-[10px] tracking-[0.2em] uppercase">Intelligence Engine</span>
               </div>
-              <div className="preview-grid">
-                <div className="preview-chart-container">
-                  <div className="chart-bars">
+              <h2 className="section-title">Analytical Precision by Design</h2>
+              <p className="section-subtitle">
+                Stop relying on spreadsheets. Our intelligence engine provides the only 100% accurate reconciliation 
+                standard for enterprise marketplace operations.
+              </p>
+            </div>
+
+            <div className="analytics-layout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '3rem', maxWidth: '1400px', margin: '0 auto' }}>
+              {/* Main Charts area */}
+              <div className="charts-column">
+                {/* Bar Chart Section (TOP) */}
+                <div className="chart-preview-box glass mb-10" style={{ padding: '2rem', borderRadius: 32, border: '1px solid rgba(0,0,0,0.05)', background: '#fff' }}>
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="text-xs font-black uppercase tracking-widest text-slate-400">Inventory Velocity (Daily)</div>
+                    <div className="badge bg-indigo-50 text-primary border-none text-[10px]">Real-time</div>
+                  </div>
+                  <div className="chart-bars" style={{ height: 250, display: 'flex', alignItems: 'flex-end', gap: '1rem', padding: '0 1rem' }}>
                     {[
                       { h: '65%', t: '₹8.2L', d: 0.1 },
                       { h: '85%', t: '₹12.4L', d: 0.2 },
                       { h: '55%', t: '₹6.1L', d: 0.3 },
                       { h: '95%', t: '₹15.8L', d: 0.4 },
                       { h: '75%', t: '₹10.2L', d: 0.5 },
-                      { h: '90%', t: '₹13.5L', d: 0.6 }
+                      { h: '90%', t: '₹13.5L', d: 0.6 },
+                      { h: '80%', t: '₹11.2L', d: 0.7 }
                     ].map((bar, i) => (
                       <motion.div 
                         key={i}
@@ -602,34 +652,92 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
                         whileInView={{ height: bar.h }}
                         viewport={{ once: true }}
                         transition={{ duration: 1, delay: bar.d, ease: "easeOut" }}
+                        style={{ flex: 1, background: 'linear-gradient(to top, var(--primary), #818cf8)', borderRadius: '8px 8px 4px 4px', position: 'relative' }}
                       >
-                        <span className="bar-tooltip">{bar.t}</span>
+                        <span className="bar-tooltip" style={{ opacity: 1, bottom: '105%' }}>{bar.t}</span>
                       </motion.div>
                     ))}
                   </div>
-                  <div className="chart-labels">
-                    <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                </div>
+
+                {/* Line Chart Section (BELOW) */}
+                <div className="chart-preview-box glass" style={{ padding: '2rem', borderRadius: 32, border: '1px solid rgba(0,0,0,0.05)', background: '#fff' }}>
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="text-xs font-black uppercase tracking-widest text-slate-400">Revenue Trajectory</div>
+                    <TrendingUp size={16} className="text-primary" />
+                  </div>
+                  <div style={{ height: 300, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{fontSize: 10, fill: '#94a3b8', fontWeight: 600}} 
+                        />
+                        <YAxis hide />
+                        <Tooltip />
+                        <Area 
+                          type="monotone" 
+                          dataKey="rev" 
+                          stroke="#4f46e5" 
+                          strokeWidth={3} 
+                          fillOpacity={1} 
+                          fill="url(#colorRev)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-                <div className="preview-stats">
+              </div>
+
+              {/* Side Column info area (Details) */}
+              <div className="details-column">
+                <div style={{ position: 'sticky', top: '8rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {[
-                    { label: 'Marketplace Revenue', value: '₹24.8L', trend: '↑ 18.4% vs last week', color: 'text-emerald-600', delay: 0.7 },
-                    { label: 'FBA & Referral Fees', value: '₹4.2L', trend: '16.9% of revenue', color: 'text-amber-600', delay: 0.8 },
-                    { label: 'Estimated Payout', value: '₹18.4L', trend: 'Next: Apr 20, 2026', color: 'text-indigo-600', delay: 0.9 }
+                    { label: 'Total Marketplace Revenue', value: '₹24.8L', trend: '↑ 18.4%', desc: 'Unified cross-channel rev.', tint: '#10b981' },
+                    { label: 'Audit Reconciliation', value: '100.0%', trend: 'Verified', desc: 'No transaction gaps found.', tint: '#6366f1' },
+                    { label: 'MTR Processing Level', value: 'Tier 3', trend: 'Priority', desc: 'Advanced scrubbing active.', tint: '#f59e0b' },
+                    { label: 'Estimated Tax Liability', value: '₹4.2L', trend: 'Calculated', desc: 'Ready for GSTR filing.', tint: '#8b5cf6' }
                   ].map((stat, i) => (
-                    <motion.div 
-                      key={i}
-                      className="stat-item"
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.8, delay: stat.delay }}
-                    >
-                      <span className="stat-label">{stat.label}</span>
-                      <span className={`stat-value ${stat.color}`}>{stat.value}</span>
-                      <span className="stat-trend">{stat.trend}</span>
-                    </motion.div>
+                    <div key={i} style={{ 
+                      padding: '1.5rem', 
+                      borderRadius: '1.5rem', 
+                      background: '#ffffff', 
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                    }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', marginBottom: '0.5rem' }}>{stat.label}</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0f172a', marginBottom: '0.5rem', letterSpacing: '-0.03em' }}>{stat.value}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '99px', background: `${stat.tint}15`, color: stat.tint }}>{stat.trend}</span>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8' }}>{stat.desc}</span>
+                      </div>
+                    </div>
                   ))}
+                  
+                  <div style={{ 
+                    padding: '1.5rem', 
+                    borderRadius: '1.5rem', 
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)', 
+                    color: 'white',
+                    boxShadow: '0 10px 30px -10px rgba(79, 70, 229, 0.5)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                      <ShieldCheck size={20} color="#c7d2fe" />
+                      <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#e0e7ff' }}>Enterprise SOC2</span>
+                    </div>
+                    <p style={{ fontSize: '0.8rem', color: '#c7d2fe', fontWeight: 500, lineHeight: 1.6, margin: 0 }}>
+                      Your business data is processed using bank-level isolated compute nodes.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -688,7 +796,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
         <div className="section-divider"></div>
 
         <section id="pricing" className="pricing">
-          <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
             <div className="badge" style={{ marginBottom: '1.5rem' }}>Pricing</div>
             <h2 className="section-title fade-in-on-scroll">Simple, Scalable Pricing</h2>
             <p className="section-subtitle fade-in-on-scroll">Choose the plan that fits your business stage.</p>
@@ -705,7 +813,7 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
                 <li><Check className="check" size={18} /> Email Support</li>
                 <li><Check className="check" size={18} /> Basic Analytics</li>
               </ul>
-              <button className="btn-outline">Choose Starter</button>
+              <button onClick={onGetStarted} className="btn-outline">Choose Starter</button>
             </div>
 
             <div className="pricing-card glass pro fade-in-on-scroll">
@@ -715,13 +823,13 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
                 <div className="price">₹5,999<span>/mo</span></div>
               </div>
               <ul className="features-list">
-                <li><Check className="check" size={18} /> 9 files per month</li>
+                <li><Check className="check" size={18} /> 10 files per month</li>
                 <li><Check className="check" size={18} /> Up to 25,000 orders</li>
                 <li><Check className="check" size={18} /> 24/7 Priority Support</li>
                 <li><Check className="check" size={18} /> AI Fraud Detection</li>
                 <li><Check className="check" size={18} /> Predictive Forecasting</li>
               </ul>
-              <button className="btn-primary">Choose Pro</button>
+              <button onClick={onGetStarted} className="btn-primary">Choose Pro</button>
             </div>
 
             <div className="pricing-card glass fade-in-on-scroll">
@@ -736,14 +844,14 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
                 <li><Check className="check" size={18} /> Full API Access</li>
                 <li><Check className="check" size={18} /> Custom Integrations</li>
               </ul>
-              <button className="btn-outline">Contact Sales</button>
+              <button onClick={onGetStarted} className="btn-outline">Contact Sales</button>
             </div>
           </div>
         </section>
 
         <section id="faq" className="faq">
           <div className="faq-container">
-            <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
               <div className="badge" style={{ marginBottom: '1.5rem' }}>Support</div>
               <h2 className="section-title fade-in-on-scroll">Frequently Asked Questions</h2>
               <p className="section-subtitle fade-in-on-scroll">Everything you need to know about SellerIQ Pro.</p>
@@ -755,13 +863,27 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
                 { q: "Can I cancel my subscription anytime?", a: "Absolutely. We offer a no-questions-asked cancellation policy. You can export your data before leaving." },
                 { q: "How accurate is the tax reconciliation?", a: "Our engine provides 99.9% accuracy, matching your Merchant Tax Reports directly with bank settlements." }
               ].map((item, i) => (
-                <div key={i} className="faq-item glass fade-in-on-scroll">
-                  <div className="faq-question">
-                    <h3>{item.q}</h3>
-                    <ChevronDown size={20} />
-                  </div>
-                  <div className="faq-answer">
-                    <p>{item.a}</p>
+                <div key={i} className="fade-in-on-scroll">
+                  <div className={`faq-item glass ${openFaq === i ? 'active' : ''}`} onClick={() => setOpenFaq(openFaq === i ? null : i)} style={{ cursor: 'pointer' }}>
+                    <div className="faq-question" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ margin: 0 }}>{item.q}</h3>
+                      <ChevronDown size={20} style={{ transform: openFaq === i ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }} />
+                    </div>
+                    <AnimatePresence initial={false}>
+                      {openFaq === i && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0 }} 
+                          animate={{ height: 'auto', opacity: 1 }} 
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3, ease: 'easeInOut' }}
+                          style={{ overflow: 'hidden' }}
+                        >
+                          <div className="faq-answer" style={{ paddingTop: '1rem', paddingBottom: '0.5rem' }}>
+                            <p style={{ margin: 0, color: '#94a3b8', lineHeight: 1.6 }}>{item.a}</p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               ))}
@@ -826,9 +948,9 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
               </div>
               <p>The enterprise standard for marketplace intelligence and automated tax compliance.</p>
               <div className="social-links">
-                <a href="#" className="social-icon"><X size={20} /></a>
-                <a href="#" className="social-icon"><ExternalLink size={20} /></a>
-                <a href="#" className="social-icon"><Link size={20} /></a>
+                <a href="#" onClick={handleFutureLink} className="social-icon"><X size={20} /></a>
+                <a href="#" onClick={handleFutureLink} className="social-icon"><ExternalLink size={20} /></a>
+                <a href="#" onClick={handleFutureLink} className="social-icon"><Link size={20} /></a>
               </div>
             </div>
             <div className="footer-links-grid">
@@ -844,37 +966,37 @@ export default function LandingPage({ onGetStarted, onLogin }: LandingPageProps)
               <div className="link-group">
                 <h4>Company</h4>
                 <ul>
-                  <li><a href="#">About Us</a></li>
-                  <li><a href="#">Careers</a></li>
-                  <li><a href="#">Security</a></li>
+                  <li><a href="#" onClick={handleFutureLink}>About Us</a></li>
+                  <li><a href="#" onClick={handleFutureLink}>Careers</a></li>
+                  <li><a href="#" onClick={handleFutureLink}>Security</a></li>
                   <li><a href="#legal">Legal</a></li>
                 </ul>
               </div>
               <div className="link-group">
                 <h4>Resources</h4>
                 <ul>
-                  <li><a href="#">Documentation</a></li>
-                  <li><a href="#">Help Center</a></li>
-                  <li><a href="#">API Reference</a></li>
-                  <li><a href="#">Community</a></li>
+                  <li><a href="#" onClick={handleFutureLink}>Documentation</a></li>
+                  <li><a href="#" onClick={handleFutureLink}>Help Center</a></li>
+                  <li><a href="#" onClick={handleFutureLink}>API Reference</a></li>
+                  <li><a href="#" onClick={handleFutureLink}>Community</a></li>
                 </ul>
               </div>
             </div>
             <div className="footer-newsletter">
               <h4>Stay Updated</h4>
               <p>Get the latest eCommerce insights delivered to your inbox.</p>
-              <div className="newsletter-form">
-                <input type="email" placeholder="Enter your email" />
-                <button className="btn-primary">Subscribe</button>
-              </div>
+              <form className="newsletter-form" onSubmit={handleSubscribe}>
+                <input type="email" placeholder="Enter your email" required />
+                <button type="submit" className="btn-primary">Subscribe</button>
+              </form>
             </div>
           </div>
           <div className="footer-bottom">
             <p>&copy; 2026 SellerIQ Pro. All rights reserved.</p>
             <div className="footer-legal">
-              <a href="#">Privacy</a>
-              <a href="#">Terms</a>
-              <a href="#">Cookies</a>
+              <a href="#" onClick={handleFutureLink}>Privacy</a>
+              <a href="#" onClick={handleFutureLink}>Terms</a>
+              <a href="#" onClick={handleFutureLink}>Cookies</a>
             </div>
           </div>
         </div>

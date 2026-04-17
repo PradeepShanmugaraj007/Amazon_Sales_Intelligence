@@ -429,7 +429,7 @@ function FullDataModal({ type, fullData, onClose }) {
   );
 }
 
-export default function FraudAnalysis({ session_id }) {
+export default function FraudAnalysis({ fraudData }) {
   const { dataset } = useAppContext();
   const [data, setData] = useState([]);
   const [fullData, setFullData] = useState(null);
@@ -442,13 +442,8 @@ export default function FraudAnalysis({ session_id }) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        if (session_id) {
-          const params = new URLSearchParams();
-          params.append('session_id', session_id);
-          if (startDate) params.append('start_date', startDate);
-          if (endDate) params.append('end_date', endDate);
-          
-          const res = await api.get(`/refunds/fraud?${params.toString()}`);
+        if (fraudData) {
+          const res = fraudData;
           setFullData(res);
           if (res && res.topRisk) {
             setData(res.topRisk);
@@ -457,7 +452,6 @@ export default function FraudAnalysis({ session_id }) {
           } else {
             setData([]);
           }
-
         } else {
           setFullData(null);
           setData([]);
@@ -469,7 +463,7 @@ export default function FraudAnalysis({ session_id }) {
       setLoading(false);
     };
     fetchData();
-  }, [session_id, startDate, endDate]);
+  }, [fraudData, startDate, endDate]);
 
   const totalRefundQty = data.reduce((s, d) => s + (d.refund_quantity || 0), 0);
   const totalRefundAmt = data.reduce((s, d) => s + (d.total_refund_amount || 0), 0);

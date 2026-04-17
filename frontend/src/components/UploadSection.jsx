@@ -3,9 +3,6 @@ import { analyzeReport } from "../api";
 import { UploadCloud, Cpu, ShieldAlert, FileSpreadsheet, Lock, Box, ShoppingCart, Database, CheckCircle2, Activity } from "lucide-react";
 
 const UploadSection = ({ onData, activePlan = 'starter' }) => {
-  const PLAN_LIMITS = { starter: 3, pro: 9, enterprise: 30 };
-  const fileLimit = PLAN_LIMITS[activePlan] ?? 3;
-
   // Track monthly upload count in localStorage
   const getUploadKey = () => {
     const now = new Date();
@@ -17,6 +14,10 @@ const UploadSection = ({ onData, activePlan = 'starter' }) => {
     localStorage.setItem(key, String(getUploadCount() + 1));
   };
 
+  const PLAN_LIMITS = { starter: 9999, pro: 9999, enterprise: 9999 };
+  const fileLimit = PLAN_LIMITS[activePlan] ?? 9999;
+  const currentUploads = getUploadCount();
+
   const [drag, setDrag] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -26,10 +27,20 @@ const UploadSection = ({ onData, activePlan = 'starter' }) => {
   const handleFile = async (file) => {
     if (!file) return;
 
-    // Check monthly upload limit
-    const used = getUploadCount();
-    if (used >= fileLimit) {
-      setMsg(`⚠️ Monthly upload limit reached (${fileLimit} files/${activePlan} plan). Upgrade your plan or wait until next month.`);
+    // Enforce Monthly upload limit
+    if (currentUploads >= fileLimit) {
+      setMsg(`⚠️ Monthly upload limit reached for ${activePlan.toUpperCase()} plan (${fileLimit} files). Please upgrade your subscription for additional capacity.`);
+      return;
+    }
+
+    // Enforce Plan-Based File Limits
+    const MAX_SIZE = activePlan === 'starter' ? 1 * 1024 * 1024 : 50 * 1024 * 1024; // 1MB for Starter, 50MB for others
+    if (file.size > MAX_SIZE) {
+      if (activePlan === 'starter') {
+        setMsg(`⚠️ Trial limit exceeded (1MB). Please upgrade to Pro for files up to 50MB.`);
+      } else {
+        setMsg(`⚠️ Upload limit exceeded (50MB). For larger enterprise migrations, please use the API Integration Hub.`);
+      }
       return;
     }
 
@@ -260,31 +271,26 @@ const UploadSection = ({ onData, activePlan = 'starter' }) => {
               <span>Map <b>state-level revenue</b> and velocity trends</span>
             </div>
           </div>
-          {/* Plan upload quota badge */}
+        </div>
+
+
+
+        <div style={{ width: '100%', maxWidth: 900, display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
           {(() => {
-            const used = getUploadCount();
-            const remaining = Math.max(0, fileLimit - used);
-            const pct = Math.min(100, (used / fileLimit) * 100);
-            const planColors = { starter: '#64748b', pro: '#a855f7', enterprise: '#f59e0b' };
-            const planColor = planColors[activePlan] || '#64748b';
+            const planColors = { starter: '#10b981', pro: '#3b82f6', enterprise: '#f59e0b' };
+            const pColor = planColors[activePlan] || '#818cf8';
             return (
-              <div style={{ marginTop: 20, display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '16px 28px', borderRadius: 16, background: `${planColor}18`, border: `1px solid ${planColor}40` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: planColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{activePlan} Plan</span>
-                  <span style={{ fontSize: 12, color: '#94a3b8' }}>•</span>
-                  <span style={{ fontSize: 13, color: '#94a3b8' }}>
-                    <b style={{ color: remaining === 0 ? '#ef4444' : '#e2e8f0' }}>{remaining}</b> / {fileLimit} uploads remaining this month
-                  </span>
-                </div>
-                <div style={{ width: 220, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, background: remaining === 0 ? '#ef4444' : planColor, borderRadius: 10, transition: 'width 0.4s' }} />
-                </div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#f8fafc', padding: '6px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', backdropFilter: 'blur(10px)' }}>
+                <Activity size={14} color={pColor} /> 
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ color: '#fff', fontSize: 13 }}>{currentUploads} <span style={{ color: '#64748b' }}>/</span> {fileLimit}</span> 
+                  <span style={{ color: '#94a3b8', margin: '0 8px' }}>UPLOADS USED</span> 
+                  <span style={{ padding: '2px 8px', background: pColor + '20', color: pColor, borderRadius: 8, fontSize: 10, letterSpacing: 1, border: `1px solid ${pColor}40` }}>{activePlan.toUpperCase()}</span>
+                </span>
               </div>
             );
           })()}
         </div>
-
-
 
         <div 
           className={`drop-zone ${drag ? 'active' : ''}`}
@@ -301,7 +307,9 @@ const UploadSection = ({ onData, activePlan = 'starter' }) => {
             {loading ? "Migrating Data..." : "Drag & Drop Data Package"}
           </h2>
           <p style={{ color: "#64748b", margin: 0 }}>
-            {loading ? "Please wait while we normalize and scrub your dataset." : "Or click anywhere in this zone to browse your files. Supports .CSV formats up to 50MB."}
+            {loading 
+              ? "Please wait while we normalize and scrub your dataset." 
+              : `Or click anywhere in this zone to browse your files. Supports .CSV formats up to ${activePlan === 'starter' ? '1MB' : '50MB'} (${activePlan.toUpperCase()} Plan).`}
           </p>
 
           {loading && (

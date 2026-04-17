@@ -1,0 +1,108 @@
+/* 
+   -------------------------------------------------------------------------
+   SellerIQ Pro - Isolated Responsive Overrides
+   This file handles all tablet and mobile specific layout logic.
+   By keeping this separate, the desktop format remains 100% undisturbed.
+   -------------------------------------------------------------------------
+*/
+
+/* =========================================================================
+   1. TABLET LAYOUT OVERRIDES (769px to 1024px)
+   ========================================================================= */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Landing Page Tablet Transitions */
+  header { padding: 1.5rem 2.5rem; }
+  .hero { padding: 4rem 2.5rem; grid-template-columns: 1fr; text-align: center; }
+  .hero-content h1 { font-size: 3.5rem; }
+  .hero-content p { margin: 0 auto 2.5rem; }
+  .hero-actions { justify-content: center; }
+  .features-grid { grid-template-columns: 1fr 1fr; }
+  .sync-container { grid-template-columns: 1fr; text-align: center; }
+  .sync-status { margin: 0 auto; }
+  
+  /* Dashboard Tablet Grid */
+  .dash-main { padding: 32px 24px !important; }
+  .dash-grid-4 { grid-template-columns: 1fr 1fr !important; }
+  .dash-grid-2 { grid-template-columns: 1fr 1fr !important; }
+  
+  /* Admin Panel Tablet */
+  .admin-content { padding: 32px 24px !important; }
+  .admin-grid { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* =========================================================================
+   2. MOBILE LAYOUT OVERRIDES (<= 768px)
+   ========================================================================= */
+@media (max-width: 768px) {
+  /* GLOBAL UTILITIES for Mobile */
+  .hide-on-mobile { display: none !important; }
+  
+  /* LANDING PAGE - Full Mobile Refactor */
+  /* Prevent Horizontal Scrolling / Overflow globally on mobile */
+  html, body { overflow-x: hidden !important; width: 100vw !important; }
+
+  /* LANDING PAGE - Full Mobile Refactor */
+  header { padding: 1rem 1.25rem !important; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); flex-direction: row !important; align-items: center !important; justify-content: space-between !important; }
+  .logo { font-size: 1.1rem !important; }
+  nav { display: none !important; }
+  .auth-buttons { display: flex !important; flex-direction: row !important; gap: 8px !important; margin: 0 !important; }
+  .auth-buttons button { padding: 8px 12px !important; font-size: 0.8rem !important; width: auto !important; margin: 0 !important; border-radius: 8px !important; }
+  
+  .hero { padding: 8rem 1.25rem 3rem !important; text-align: left !important; grid-template-columns: 1fr !important; gap: 2rem !important; }
+  .hero-content h1 { font-size: 2.25rem !important; line-height: 1.1 !important; letter-spacing: -1.5px !important; word-wrap: break-word !important; }
+  .hero-content p { font-size: 1.1rem !important; margin: 0 auto 2.5rem !important; }
+  .hero-actions { flex-direction: column !important; width: 100% !important; gap: 12px !important; }
+  .hero-actions button { width: 100% !important; padding: 1.1rem !important; justify-content: center !important; text-align: center !important; display: block !important; }
+  
+  .features, .analytics, .amazon-sync-section { padding: 3.5rem 1.25rem; }
+  .section-title { font-size: 2.25rem; line-height: 1.2; }
+  .features-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  
+  .bento-item { padding: 1.5rem; height: auto !important; }
+  .bento-value { font-size: 2rem; }
+  
+  .amazon-sync-section h2 { font-size: 2.5rem; }
+  .sync-container { gap: 3rem; }
+
+  /* DASHBOARD - Mobile Optimization */
+  .dash-main { margin-left: 0 !important; padding: 75px 12px 24px !important; }
+  .dash-header { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+  .dash-filter-bar { flex-wrap: wrap; gap: 8px !important; }
+  
+  /* Force all Dashboard grids and inline grids to single column stack */
+  .dash-grid-4, .dash-grid-2, .admin-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+  
+  /* Aggressively target React inline styles that try to force multi-columns on mobile */
+  [style*="grid-template-columns:"] { grid-template-columns: 1fr !important; }
+  [style*="grid-template-columns :"] { grid-template-columns: 1fr !important; }
+  
+  /* Responsive flex containers */
+  .dash-flex-responsive { flex-direction: column !important; gap: 32px; align-items: center; text-align: center; }
+  .dash-path-line { display: none !important; }
+  
+  /* Additional safety for small mobile screens (e.g. 375px) */
+  .stat-card, .card, [style*="box-shadow"] { padding: 16px !important; }
+  
+  /* Horizontal scroll for table instead of squishing */
+  .responsive-table-container, [style*="overflow-x"] { overflow-x: auto !important; -webkit-overflow-scrolling: touch; margin: 0 -12px; padding: 0 12px; }
+  
+  /* ADMIN PANEL - Mobile Overrides */
+  .admin-bg { flex-direction: column; }
+  .admin-sidebar-desktop { display: none !important; }
+  .admin-mobile-nav { display: flex !important; }
+  .admin-content { padding: 80px 12px 24px !important; margin-left: 0 !important; }
+  .admin-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+  .admin-header-row { flex-direction: column; align-items: flex-start !important; gap: 16px; }
+  .search-container, .search-input { width: 100% !important; }
+  
+  /* Large touch targets */
+  .btn-logout { width: 100%; height: 48px; }
+}
+
+
+/* =========================================================================
+   3. SHARED RESPONSIVE BASE (Classes used across components)
+   ========================================================================= */
+.dash-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.admin-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
