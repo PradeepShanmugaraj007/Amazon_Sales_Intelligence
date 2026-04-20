@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck, Lock, User, ArrowRight, BarChart2, TrendingUp, CheckCircle, CreditCard, Key, Briefcase, Phone, Mail, RotateCcw } from "lucide-react";
+import { ShieldCheck, Lock, User, ArrowRight, BarChart2, TrendingUp, CheckCircle, CreditCard, Key, Briefcase, Phone, Mail, RotateCcw, AlertTriangle } from "lucide-react";
 
 const loadRazorpay = () => new Promise((resolve) => {
   const script = document.createElement("script");
@@ -17,7 +17,7 @@ const SaaS_PLANS = [
 
 const LoginSection = ({ onLogin, initialView = "plans" }) => {
   const [view, setView] = useState(initialView); 
-  // views: plans | user_login | admin | prefill | payment_success | forgot_password | forgot_sent
+  // views: plans | user_login | admin | prefill | payment_success | forgot_password | forgot_sent | expired
 
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
@@ -76,7 +76,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
     }
 
     try {
-      const response = await fetch('http://192.168.1.5:5000/api/create-payment-order', {
+      const response = await fetch('http://localhost:5000/api/payments/create-payment-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: prefillPlan.price, currency: "INR" })
@@ -105,7 +105,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
         handler: async function (rzpResponse) {
           // Step 3: Call backend to create user & send email
           try {
-            const completeRes = await fetch('http://192.168.1.5:5000/api/complete-payment', {
+            const completeRes = await fetch('http://localhost:5000/api/payments/complete-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -151,21 +151,34 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
     setIsLoading(true);
     setErr("");
     try {
-      const res = await fetch('http://192.168.1.5:5000/api/login', {
+      const res = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user, password: pass })
       });
       const data = await res.json();
       if (!res.ok) {
+        if (data.detail === "PLAN_EXPIRED") {
+          setIsLoading(false);
+          setSuccessData({
+            name: data.name,
+            email: data.email,
+            plan: data.plan,
+            expiry: data.expiry_date
+          });
+          setView("expired");
+          return;
+        }
         setErr(data.detail || "Login failed.");
         setIsLoading(false);
         return;
       }
-      sessionStorage.setItem("siq_auth_token", "siq_tk_" + Math.random().toString(36).substr(2, 9));
-      sessionStorage.setItem("siq_user_name", data.name);
-      setMsg("Welcome back, " + data.name + "!");
-      setTimeout(() => onLogin("user", data.plan), 800);
+      // Store the real signed JWT from backend
+      sessionStorage.setItem("siq_auth_token", data.access_token);
+      sessionStorage.setItem("siq_user_name", data.user.name);
+      localStorage.setItem("userEmail", data.user.email); 
+      setMsg("Welcome back, " + data.user.name + "!");
+      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats), 800);
     } catch {
       setErr("Unable to reach the server. Make sure the backend is running.");
       setIsLoading(false);
@@ -178,9 +191,10 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
     setIsLoading(true);
     setErr("");
     setTimeout(() => {
-      if (user === "admin" && pass === "password123") {
+      if (user === "admin@selleriq.pro" && pass === "password") {
         onLogin("admin");
       } else {
+
         setErr("Invalid internal database credentials. Access denied.");
         setIsLoading(false);
       }
@@ -193,7 +207,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
     setIsLoading(true);
     setErr("");
     try {
-      const res = await fetch('http://192.168.1.5:5000/api/forgot-password', {
+      const res = await fetch('http://localhost:5000/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail })
@@ -370,7 +384,26 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
                         Subscribe — ₹{plan.price.toLocaleString('en-IN')}/mo <CreditCard size={18} />
                       </button>
                       <button
-                        onClick={() => onLogin("user", plan.id)}
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('http://localhost:5000/api/auth/bypass-login', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ plan: plan.id })
+                            });
+                            const data = await res.json();
+                            if (res.ok) {
+                              sessionStorage.setItem("siq_auth_token", data.access_token);
+                              sessionStorage.setItem("siq_user_name", data.user.name);
+                              localStorage.setItem("userEmail", data.user.email); 
+                              onLogin("user", data.user.plan, data.user.usageStats);
+                            } else {
+                              alert("Bypass Init Failed: " + (data.detail || "Internal Error"));
+                            }
+                          } catch (e) {
+                            alert("Bypass Network Error: check if backend is running.");
+                          }
+                        }}
                         style={{
                           marginTop: 10, width: '100%', background: 'transparent',
                           border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.35)',
@@ -538,6 +571,41 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
                 <button className="auth-btn" onClick={() => resetForm("user_login")}>
                   <ArrowRight size={20} style={{ transform: "rotate(180deg)" }} /> Back to Login
                 </button>
+              </div>
+            )}
+
+            {/* ── EXPIRED BLOCK ── */}
+            {view === "expired" && successData && (
+              <div style={{ textAlign: "center", animation: "fadeIn 0.5s ease-out" }}>
+                <div style={{ padding: '20px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '50%', width: 'fit-content', margin: '0 auto 24px' }}>
+                  <AlertTriangle size={48} color="#ef4444" />
+                </div>
+                <h2 style={{ color: "#fff", fontSize: 26, fontWeight: 900, marginBottom: 8 }}>Subscription Expired</h2>
+                <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, marginBottom: 32, lineHeight: 1.6 }}>
+                  Your <strong style={{ color: "#ef4444" }}>{successData.plan.toUpperCase()}</strong> membership for <strong>{successData.email}</strong> has already expired on <strong>{successData.expiry}</strong>.
+                </p>
+                
+                <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 16, padding: 24, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 28, textAlign: "left" }}>
+                  <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 700, marginBottom: 12, textTransform: 'uppercase' }}>Available Actions:</div>
+                  <ul style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, paddingLeft: 20, margin: 0 }}>
+                    <li style={{ marginBottom: 8 }}>Renew your current plan to restore access immediately.</li>
+                    <li style={{ marginBottom: 8 }}>Upgrade to a higher tier for more features.</li>
+                    <li>Download invoices from the support center.</li>
+                  </ul>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <button className="auth-btn" onClick={() => {
+                    setBuyerEmail(successData.email);
+                    setBuyerName(successData.name);
+                    setView("plans");
+                  }}>
+                    Renew or Upgrade Now <CreditCard size={20} />
+                  </button>
+                  <button className="text-btn" onClick={() => resetForm("user_login")} style={{ width: '100%', justifyContent: 'center' }}>
+                    <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Back to Clinical Login
+                  </button>
+                </div>
               </div>
             )}
 

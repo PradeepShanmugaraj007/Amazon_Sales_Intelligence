@@ -2,50 +2,25 @@ import React, { useState } from "react";
 import { analyzeReport } from "../api";
 import { UploadCloud, Cpu, Activity, Play } from "lucide-react";
 
-const DemoUpload = ({ onData }) => {
+const DemoUpload = ({ onFileSelect, ingestionStatus }) => {
   const [drag, setDrag] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [migrationStatus, setMigrationStatus] = useState(0);
+  const loading = ingestionStatus?.loading || false;
+  const msg = ingestionStatus?.msg || "";
+  const migrationStatus = ingestionStatus?.progress || 0;
 
-  const handleFile = async (file) => {
-    if (!file) return;
+  const handleFileLocal = async (file) => {
+    if (!file || loading) return;
 
-    // Demo enforces 1MB limit unconditionally
-    if (file.size > 1 * 1024 * 1024) {
-      setMsg(`⚠️ Demo Trial limit exceeded (1MB). A subscription is required for larger datasets.`);
+    // Demo enforces 5MB limit unconditionally
+    if (file.size > 5 * 1024 * 1024) {
+      alert(`Demo Trial limit exceeded (5MB). Subscription required for larger datasets.`);
       return;
     }
 
-    setLoading(true); 
-    setMsg("Initializing isolated demo container...");
-    setMigrationStatus(15);
+    // Reset input so same file can be selected twice if needed
+    try { if (document.getElementById("demoFileInput")) document.getElementById("demoFileInput").value = ""; } catch(e) {}
     
-    setTimeout(() => {
-        if(loading) setMigrationStatus(45);
-    }, 400);
-
-    let hasError = false;
-    try {
-      const result = await analyzeReport(file);
-      
-      if (result.success) {
-        setMigrationStatus(100);
-        setMsg("Demo analysis finalized. Loading 20-second preview...");
-        if (result.rawData) {
-          result.rawData.forEach(r => {
-            if (r._isoDate) r._isoDate = new Date(r._isoDate);
-          });
-        }
-        setTimeout(() => onData(result, file.name, 'amazon'), 800); 
-      }
-    } catch (err) { 
-      setMsg("Analysis failed: " + err.message); 
-      setMigrationStatus(0);
-      hasError = true;
-    } finally {
-      if(hasError) setLoading(false); 
-    }
+    onFileSelect(file);
   };
 
   return (
@@ -106,14 +81,14 @@ const DemoUpload = ({ onData }) => {
             <Play size={14} fill="currentColor" /> INTERACTIVE DEMO MODE
           </div>
           <h1 style={{ fontSize: 36, fontWeight: 900, marginBottom: 12 }}>Experience the Engine</h1>
-          <p style={{ color: "#94a3b8", fontSize: 16 }}>Upload a sample file to see a 20-second live preview. Limited to 1MB.</p>
+          <p style={{ color: "#94a3b8", fontSize: 16 }}>Upload a sample file to see a live preview. Limited to 5MB (1 Month Duration).</p>
         </div>
 
         <div 
           className={`demo-drop-zone ${drag ? 'active' : ''}`}
           onDragOver={e => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
-          onDrop={e => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]); }}
+          onDrop={e => { e.preventDefault(); setDrag(false); handleFileLocal(e.dataTransfer.files[0]); }}
           onClick={() => !loading && document.getElementById("demoFileInput").click()}
         >
           <div style={{ 
@@ -137,14 +112,31 @@ const DemoUpload = ({ onData }) => {
               <div className="demo-progress-bar-bg">
                 <div className="demo-progress-bar-fill" style={{ width: `${migrationStatus}%` }}></div>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#a855f7", fontWeight: 700 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#a855f7", fontWeight: 700, marginBottom: 12 }}>
                 <span>{msg}</span>
                 <span>{migrationStatus}%</span>
               </div>
+
+              {migrationStatus === 100 && (
+                <button 
+                  onClick={() => {
+                    setLoading(false);
+                    onData(null, '', ''); // Fallback trigger
+                  }}
+                  style={{ 
+                    marginTop: 10, width: '100%', padding: '12px', background: 'white', 
+                    color: '#6366f1', borderRadius: 12, fontWeight: 800, border: 'none', 
+                    cursor: 'pointer', boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                    animation: 'fadeIn 0.3s ease-out'
+                  }}
+                >
+                  🚀 Launch Dynamic Dashboard
+                </button>
+              )}
             </div>
           )}
           
-          <input id="demoFileInput" type="file" accept=".csv" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
+          <input id="demoFileInput" type="file" accept=".csv" style={{ display: "none" }} onChange={e => handleFileLocal(e.target.files[0])} />
         </div>
 
         {msg && !loading && (

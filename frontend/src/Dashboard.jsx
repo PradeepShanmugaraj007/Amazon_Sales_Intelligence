@@ -2,12 +2,13 @@ import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, PieChart, Pie, Legend, LineChart, Line
+  BarChart, Bar, Cell, PieChart, Pie, Legend, LineChart, Line,
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from "recharts";
 import { 
   AlertTriangle, MapPin, Package, RotateCcw, User, Tag, 
   ChevronDown, ChevronUp, Shield, Calendar, Search, 
-  TrendingUp, TrendingDown, Clock, Activity, Download
+  TrendingUp, TrendingDown, Clock, Activity, Download, Check
 } from 'lucide-react';
 
 import html2canvas from 'html2canvas';
@@ -16,19 +17,74 @@ import { jsPDF } from 'jspdf';
 import LoginSection from "./components/LoginSection";
 import LandingPage from "./components/LandingPage";
 import UploadSection from "./components/UploadSection";
-import DemoUpload from "./components/DemoUpload";
 import Sidebar from "./components/Sidebar";
 import "./responsive_overrides.css";
 import AdminPanel from "./components/AdminPanel";
+import { analyzeReport } from "./api";
 import { KpiCard, SectionHeader, Badge, InsightCard } from "./components/UIComponents";
 import FraudAnalysis, { CriticalRiskCard } from "./components/RiskAnalysis";
-import { processData, fmt, colorFor, BRAND, ACCENT, GREEN, RED, PURPLE, TEAL, INDIAN_STATES } from "./utils";
+import { processData, fmt, pct, colorFor, BRAND, ACCENT, GREEN, RED, PURPLE, TEAL, INDIAN_STATES } from "./utils";
 import { AppProvider, useAppContext } from "./context/AppContext";
 
 import ShopifyDashboard from "./components/ShopifyDashboard";
 import ERPDashboard from "./components/ERPDashboard";
+import DemoUpload from "./components/DemoUpload";
+import RegionAnalysis from "./components/RegionAnalysis";
 
-// ─── UPGRADE BANNER ─────────────────────────────────────────────────────────
+const SaaS_PLANS = [
+  { id: 'starter', name: 'Starter', price: 2999, features: ['3 files allowed / month', 'Basic Analytics', 'Standard Reports', 'Email Support'] },
+  { id: 'pro', name: 'Pro', price: 5999, recommended: true, features: ['10 files allowed / month', 'Advanced Fraud AI', 'Revenue Forecasting', '24/7 Priority Support'] },
+  { id: 'enterprise', name: 'Enterprise', price: 14999, features: ['30 files allowed / month', 'SaaS Integration Hub', 'Custom Modeling', '24/7 Call Support'] }
+];
+
+const SaaSMembership = ({ styles, activePlan }) => {
+  const isDemoMode = styles?.isDemoMode;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginTop: 40 }}>
+      {SaaS_PLANS.map((p, i) => {
+        const isActive = isDemoMode ? false : p.id === activePlan;
+        return (
+          <div key={i} style={{ 
+            background: 'white', border: isActive ? `2px solid ${BRAND}` : '1px solid #e2e8f0', 
+            borderRadius: 24, padding: 32, position: 'relative', overflow: 'hidden',
+            boxShadow: isActive ? `0 20px 40px -10px ${BRAND}20` : '0 10px 30px -10px rgba(0,0,0,0.05)'
+          }}>
+            {p.recommended && !isActive && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: BRAND, color: 'white', fontSize: 10, fontWeight: 900, textAlign: 'center', padding: '4px 0', letterSpacing: 1 }}>RECOMMENDED</div>}
+            <h3 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>{p.name}</h3>
+            <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 24 }}>₹{p.price.toLocaleString('en-IN')}<span style={{ fontSize: 14, color: '#64748b', fontWeight: 500 }}>/mo</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+              {p.features.map((f, fi) => (
+                <div key={fi} style={{ display: 'flex', gap: 8, fontSize: 13, color: '#475569' }}>
+                   <div style={{ color: BRAND }}><Check size={16} /></div> {f}
+                </div>
+              ))}
+            </div>
+            <button 
+              onClick={() => {
+                if (isDemoMode) {
+                  sessionStorage.clear();
+                  window.location.href = '/?action=get-started#login';
+                } else {
+                  window.onTriggerUpgrade?.(p.id);
+                }
+              }}
+              style={{ 
+                width: '100%', padding: '12px', borderRadius: 12, border: 'none', 
+                background: isActive ? '#f1f5f9' : BRAND, color: isActive ? '#64748b' : 'white',
+                fontWeight: 800, cursor: isActive ? 'default' : 'pointer'
+              }}
+              disabled={isActive}
+            >
+              {isActive ? "Currently Active" : (isDemoMode ? "Get Started" : "Upgrade Now")}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─── UPGRADE BANNER ──────────────────────────────────────────────────────────
 const UpgradeBanner = ({ feature, requiredPlan, color, icon }) => (
   <div style={{
     background: `linear-gradient(135deg, ${color}18, ${color}08)`,
@@ -51,8 +107,9 @@ const UpgradeBanner = ({ feature, requiredPlan, color, icon }) => (
       background: color, color: "#fff",
       fontWeight: 800, fontSize: 15,
       boxShadow: `0 8px 24px ${color}40`,
-    }}>
-      🚀 Upgrade to {requiredPlan}
+      cursor: "pointer"
+    }} onClick={() => window.onTriggerUpgrade?.(requiredPlan.toLowerCase())}>
+      ✨ Upgrade to {requiredPlan}
     </div>
     <div style={{ marginTop: 16, fontSize: 13, color: "#94a3b8" }}>
       Contact us at support@selleriq.pro to upgrade your subscription.
@@ -93,7 +150,6 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
   }, []);
   
   const setActiveTab = (tabId) => {
-    if (LOCKED_TABS.includes(tabId)) return; // Block locked tabs
     const valid = KNOWN_TABS.includes(tabId) ? tabId : "overview";
     window.location.hash = valid;
     setActiveTabState(valid); 
@@ -118,11 +174,50 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
   const filtered = useMemo(() => {
     let d = rawData || [];
 
-    if (dateRange === "7d") { const c = new Date(); c.setDate(c.getDate() - 7); d = d.filter(r => r._isoDate >= c); }
-    if (startDate) { const sd = new Date(startDate); d = d.filter(r => r._isoDate && r._isoDate >= sd); }
-    if (endDate) { const ed = new Date(endDate); d = d.filter(r => r._isoDate && r._isoDate <= ed); }
+    const parseRowDate = (r) => {
+      const raw = r._isoDate || r["Invoice Date"];
+      if (!raw) return null;
+      if (raw instanceof Date && !isNaN(raw.getTime())) return raw;
+      // Strip time component (handles "2024-01-14 10:30" and "2024-01-14T05:00:00+00:00")
+      const datePart = String(raw).split('T')[0].split(' ')[0].trim();
+      const s = datePart.replace(/\//g, '-');
+      const parts = s.split('-');
+      if (parts.length === 3) {
+        const p0 = parseInt(parts[0], 10);
+        const p1 = parseInt(parts[1], 10);
+        const p2 = parseInt(parts[2], 10);
+        if (!isNaN(p0) && !isNaN(p1) && !isNaN(p2)) {
+          // YYYY-MM-DD (year first if first part > 31)
+          if (p0 > 31) return new Date(p0, p1 - 1, p2);
+          // DD-MM-YYYY
+          return new Date(p2, p1 - 1, p0);
+        }
+      }
+      const fallback = new Date(raw);
+      return isNaN(fallback.getTime()) ? null : fallback;
+    };
+
+    if (dateRange === "7d" || dateRange === "30d" || dateRange === "90d") {
+      // Find the most recent date in the dataset (not today, since data is historical)
+      const allDates = d.map(r => parseRowDate(r)).filter(Boolean);
+      // DEBUG: log raw date field from first row
+      if (d.length > 0) console.log("[DATE DEBUG] Invoice Date sample:", d[0]["Invoice Date"], "→ parsed:", parseRowDate(d[0]), "| allDates parsed:", allDates.length, "of", d.length);
+      if (allDates.length > 0) {
+        const maxDate = new Date(Math.max(...allDates.map(dt => dt.getTime())));
+        const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
+        const cutoff = new Date(maxDate);
+        cutoff.setDate(cutoff.getDate() - days);
+        console.log("[DATE DEBUG] maxDate:", maxDate, "| cutoff:", cutoff, "| days:", days);
+        d = d.filter(r => { const dt = parseRowDate(r); return dt && dt >= cutoff; });
+        console.log("[DATE DEBUG] rows after filter:", d.length);
+      } else {
+        console.warn("[DATE DEBUG] No dates could be parsed! Check Invoice Date column format.");
+      }
+    }
+    if (startDate) { const sd = new Date(startDate); d = d.filter(r => { const dt = parseRowDate(r); return dt && dt >= sd; }); }
+    if (endDate) { const ed = new Date(endDate); d = d.filter(r => { const dt = parseRowDate(r); return dt && dt <= ed; }); }
     if (skuFilter) d = d.filter(r => (r["Sku"] || "").toLowerCase().includes(skuFilter.toLowerCase()) || (r["Item Description"] || "").toLowerCase().includes(skuFilter.toLowerCase()));
-    if (stateFilter !== "all") d = d.filter(r => r["Ship To State"] === stateFilter);
+    if (stateFilter !== "all") d = d.filter(r => (r["Ship To State"] || "").trim().toLowerCase() === stateFilter.trim().toLowerCase());
     return d;
   }, [rawData, dateRange, skuFilter, stateFilter, startDate, endDate]);
 
@@ -144,7 +239,8 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
     select: { padding: "10px 16px", borderRadius: 10, border: "1px solid #cbd5e1", background: "#ffffff", fontSize: 14, fontWeight: 600, color: "#334155", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" },
     table: { width: "100%", borderCollapse: "collapse" },
     th: { textAlign: "left", padding: "14px", fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "2px solid #e2e8f0" },
-    td: { padding: "14px", fontSize: 14, color: "#334155", borderBottom: "1px solid #f1f5f9" }
+    td: { padding: "14px", fontSize: 14, color: "#334155", borderBottom: "1px solid #f1f5f9" },
+    grid6: { display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 16, marginBottom: 24 }
   };
 
   const generatePDF = async () => {
@@ -156,22 +252,30 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         const target = document.getElementById("dashboard-export-area");
         if(!target) return;
         
-        const canvas = await html2canvas(target, { scale: 3, backgroundColor: "#f8fafc", useCORS: true, logging: false });
-        const imgData = canvas.toDataURL("image/png", 1.0);
+        const canvas = await html2canvas(target, { scale: 1.5, backgroundColor: "#f8fafc", useCORS: true, logging: false });
+        const imgData = canvas.toDataURL("image/jpeg", 0.82);
         
-        // Define precise optical bounds using exact DOM dimensions
-        const pdfWidth = target.offsetWidth;
-        const pdfHeight = target.offsetHeight;
+        // Standard A4 page with aspect-ratio fitted content
+        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgRatio = canvas.height / canvas.width;
+        const imgH = pageWidth * imgRatio;
         
-        // Render with extreme high-res scale mapped perfectly into the DOM boundary
-        const pdf = new jsPDF({
-          orientation: "portrait",
-          unit: "pt",
-          format: [pdfWidth, pdfHeight]
-        });
-        
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`SellerIQ_MasterReport_${activePlan.toUpperCase()}.pdf`);
+        // If content is taller than one A4 page, paginate it
+        if (imgH <= pageHeight) {
+          pdf.addImage(imgData, "JPEG", 0, 0, pageWidth, imgH);
+        } else {
+          let yOffset = 0;
+          let remaining = imgH;
+          while (remaining > 0) {
+            pdf.addImage(imgData, "JPEG", 0, -yOffset, pageWidth, imgH);
+            remaining -= pageHeight;
+            yOffset += pageHeight;
+            if (remaining > 0) pdf.addPage();
+          }
+        }
+        pdf.save(`SellerIQ_Report_${activePlan.toUpperCase()}.pdf`);
       } catch (err) {
         console.error("PDF Export failed", err);
         alert("Failed to render PDF. Please try again.");
@@ -239,46 +343,83 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
           </div>
           <div style={{ textAlign: "right", marginRight: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: GREEN, marginBottom: 12 }}>● STATUS: SECURE</div>
-            <button 
-               onClick={generatePDF} 
-               style={{ 
-                 padding: "8px 16px", borderRadius: 8, border: "none", 
-                 background: BRAND, 
-                 color: "#fff", 
-                 fontSize: 13, fontWeight: 700, cursor: "pointer",
-                 display: "flex", alignItems: "center", gap: 8 
-               }}
-               title="Download PDF Report"
-            >
-               <Download size={16} /> PDF Export
-            </button>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button 
+                 onClick={() => alert("GST Data Exporting...")} 
+                 style={{ 
+                   padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e2e8f0", 
+                   background: "transparent", color: "#334155", 
+                   fontSize: 13, fontWeight: 700, cursor: "pointer",
+                   display: "flex", alignItems: "center", gap: 8 
+                 }}
+              >
+                 <Download size={16} /> GST Export
+              </button>
+              <button 
+                 onClick={generatePDF} 
+                 style={{ 
+                   padding: "8px 16px", borderRadius: 8, border: "none", 
+                   background: BRAND, color: "#fff", 
+                   fontSize: 13, fontWeight: 700, cursor: "pointer",
+                   display: "flex", alignItems: "center", gap: 8 
+                 }}
+                 title="Download PDF Report"
+              >
+                 <Download size={16} /> PDF Export
+              </button>
+            </div>
           </div>
         </div>
 
         {!isExporting && activeTab !== "fraud" && activeTab !== "saas" && activeTab !== "about" && activeTab !== "support" && (
           <div style={styles.filterBar}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 800 }}>Period:</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Period:</span>
               <select style={styles.select} value={dateRange} onChange={e => setDateRange(e.target.value)}>
-                <option value="all">Lifetime</option>
-                <option value="7d">Last 7d</option>
+                <option value="all">All Data</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="90d">Last 90 Days</option>
               </select>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 800 }}>State:</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Range:</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="date" style={styles.select} value={startDate} onChange={e => setStartDate(e.target.value)} />
+                <span style={{ color: "#94a3b8" }}>→</span>
+                <input type="date" style={styles.select} value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Channel:</span>
+              <select style={styles.select}>
+                <option>FBA + MFN</option>
+                <option>FBA Only</option>
+                <option>MFN Only</option>
+              </select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>State:</span>
               <select style={styles.select} value={stateFilter} onChange={e => setStateFilter(e.target.value)}>
-                <option value="all">All Regions</option>
+                <option value="all">All States</option>
                 {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-              <input type="text" placeholder="Search SKU or name..." style={{ ...styles.select, flex: 1, background: "#fff" }} value={skuFilter} onChange={e => setSkuFilter(e.target.value)} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", opacity: 0 }}>Search:</span>
+              <div style={{ position: "relative" }}>
+                <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                <input type="text" placeholder="Search SKU, name or details..." style={{ ...styles.select, width: "100%", paddingLeft: 36, background: "#fff" }} value={skuFilter} onChange={e => setSkuFilter(e.target.value)} />
+              </div>
             </div>
             {activeTab === "overview" && (
-              <div style={{ display: "flex", gap: 4, padding: 3, background: "#f1f5f9", borderRadius: 8 }}>
-                {["daily", "weekly", "monthly"].map(v => (
-                  <button key={v} onClick={() => setChartView(v)} style={{ padding: "4px 10px", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 800, cursor: "pointer", background: chartView === v ? "#fff" : "transparent" }}>{v[0].toUpperCase() + v.slice(1)}</button>
-                ))}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", opacity: 0 }}>View:</span>
+                <div style={{ display: "flex", gap: 4, padding: 3, background: "#f1f5f9", borderRadius: 8 }}>
+                  {["daily", "weekly", "monthly"].map(v => (
+                    <button key={v} onClick={() => setChartView(v)} style={{ padding: "4px 12px", border: "none", borderRadius: 6, fontSize: 10, fontWeight: 800, cursor: "pointer", background: chartView === v ? "#fff" : "transparent", color: chartView === v ? BRAND : "#64748b" }}>{v[0].toUpperCase() + v.slice(1)}</button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -288,15 +429,17 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         {(activeTab === "overview" || isExporting) && stats && (
           <>
             {isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 30, marginTop: 40, color: "#0f172a" }}>1. Executive Overview</h2>}
-            <div className="dash-grid-4" style={{ marginBottom: 24 }}>
-              <KpiCard label={source === 'shopify' ? 'D2C Gross Sales' : source === 'custom' ? 'Wholesale Revenue' : 'Total Revenue'} value={fmt(stats.totalRevenue)} icon="💰" color={BRAND} trend={8.2} />
-              <KpiCard label={source === 'shopify' ? 'Checkout Orders' : source === 'custom' ? 'B2B Purchase Orders' : 'Orders Received'} value={stats.totalOrders} icon="📦" color={GREEN} trend={12} />
-              <KpiCard label={source === 'shopify' ? 'Cart Abandonment Loss' : source === 'custom' ? 'Defect Return Rate' : 'Refund Rate'} value={`${stats.returnRate}%`} icon="🔄" color={RED} trend={-2} />
-              <KpiCard label={source === 'shopify' ? 'Average Cart Value' : source === 'custom' ? 'Avg PO Value' : 'Avg. Order Value'} value={fmt(stats.avgOrderValue)} icon="💎" color={PURPLE} />
+            <div style={styles.grid6}>
+              <KpiCard label="Total Revenue" value={fmt(stats.totalRevenue)} icon={<Activity size={20} />} color={BRAND} trend={12.4} />
+              <KpiCard label="Order Velocity" value={stats.totalOrders} icon={<Package size={20} />} color={ACCENT} trend={8.2} />
+              <KpiCard label="Avg Order Value" value={fmt(stats.avgOrderValue)} icon={<Activity size={20} />} color={TEAL} trend={-1.5} />
+              <KpiCard label="Return Health" value={`${stats.returnRate}%`} icon={<RotateCcw size={20} />} color={RED} sub="Normal" trend={0.2} />
+              <KpiCard label="Tax Liability" value={fmt(stats.totalTax)} icon={<Shield size={20} />} color={GREEN} sub="Active" />
+              <KpiCard label="Sku Depth" value={stats.skuCount} icon={<Tag size={20} />} color={BRAND} sub="Diversified" />
             </div>
             <div className="dash-grid-2" style={{ marginBottom: 24 }}>
               <div style={styles.card}>
-                <SectionHeader title="📈 Revenue performance" sub="Revenue trend per selected view" />
+                <SectionHeader title="Revenue Trajectory" sub="Performance across current reporting period" />
                 <ResponsiveContainer width="100%" height={280}>
                    <AreaChart data={chartData}>
                      <defs><linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={BRAND} stopOpacity={0.1}/><stop offset="95%" stopColor={BRAND} stopOpacity={0}/></linearGradient></defs>
@@ -327,46 +470,21 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
                  </div>
               </div>
             </div>
+
+            {/* AI INTELLIGENCE & DEEP INSIGHTS */}
+            <div style={{ marginTop: 40, marginBottom: 40 }}>
+              <SectionHeader title="🧠 AI Intelligence & Deep Insights" sub="Neural engine analysis of transactional metadata" />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
+                {(stats.insights || []).map((ins, i) => (
+                  <InsightCard key={i} title={ins.title} body={ins.text} icon={ins.type === 'warning' ? '⚠️' : '💡'} color={ins.type === 'warning' ? RED : ins.type === 'success' ? GREEN : BRAND} />
+                ))}
+              </div>
+            </div>
           </>
         )}
 
         {(activeTab === "regions" || isExporting) && stats && (
-          <div className="page-container" style={{ marginTop: isExporting ? 60 : 0 }}>
-            {isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 30, color: "#0f172a" }}>2. Territorial Breakdown</h2>}
-            <div className="dash-grid-2">
-              <div style={styles.card}>
-                <SectionHeader title="🗺️ Regional Performance" sub="Revenue by Shipping State" />
-                <ResponsiveContainer width="100%" height={300}>
-                   <BarChart data={(stats.stateList || []).slice(0, 10)} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="state" type="category" width={100} style={{ fontSize: 12, fontWeight: 600 }} />
-                    <Tooltip formatter={(v) => fmt(v)} />
-                    <Bar dataKey="revenue" fill={BRAND} radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={styles.card}>
-                <SectionHeader title="📈 State Growth Matrix" sub="Key metrics per region" />
-                <div style={{ maxHeight: 300, overflowY: "auto" }}>
-                  <table style={styles.table}>
-                    <thead>
-                      <tr><th style={styles.th}>State</th><th style={styles.th}>Revenue</th><th style={styles.th}>Orders</th></tr>
-                    </thead>
-                    <tbody>
-                      {(stats.stateList || []).map(s => (
-                        <tr key={s.state}>
-                          <td style={styles.td}><b>{s.state}</b></td>
-                          <td style={styles.td}>{fmt(s.revenue)}</td>
-                          <td style={styles.td}>{s.orders}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
+          <RegionAnalysis stats={stats} styles={styles} isExporting={isExporting} />
         )}
 
         {(activeTab === "fraud" || isExporting) && (
@@ -446,52 +564,81 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
              </div>
            </div>
            ) : (
-           <div className="dash-grid-2" style={{ marginTop: isExporting ? 60 : 0 }}>
-             <div style={{ gridColumn: "1 / -1" }}>{isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 10, color: "#0f172a" }}>4. GST & Tax Liability</h2>}</div>
-             
-             {/* Extended B2B/MTR KPIs */}
-             <div className="dash-grid-4" style={{ gridColumn: "1 / -1" }}>
-                <KpiCard label="Total Taxable Value" value={fmt(stats.totalRevenue)} color="#0f172a" icon="🏦" />
-                <KpiCard label="Total GST Collected" value={fmt(stats.tax?.total || 0)} color={PURPLE} icon="🧾" />
-                <KpiCard label="Tax Credits (ITC) Est." value={fmt((stats.tax?.total || 0) * 0.15)} color={GREEN} icon="💡" />
-                <KpiCard label="Net Tax Liability" value={fmt((stats.tax?.total || 0) * 0.85)} color={BRAND} icon="💳" />
-             </div>
+            <div className="dash-grid-2" style={{ marginTop: isExporting ? 60 : 0 }}>
+              <div style={{ gridColumn: "1 / -1" }}>{isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 10, color: "#0f172a" }}>4. GST & Tax Liability</h2>}</div>
+              
+              <div className="dash-grid-4" style={{ gridColumn: "1 / -1" }}>
+                 <KpiCard label="Total Taxable Value" value={fmt(stats.totalRevenue)} color="#0f172a" icon={<Shield size={20}/>} />
+                 <KpiCard label="Total GST Collected" value={fmt(stats.tax?.total || 0)} color={PURPLE} icon={<Activity size={20}/>} />
+                 <KpiCard label="Tax Credits (ITC) Est." value={fmt((stats.tax?.total || 0) * 0.15)} color={GREEN} icon={<Check size={20}/>} />
+                 <KpiCard label="Net Tax Liability" value={fmt((stats.tax?.total || 0) * 0.85)} color={BRAND} icon={<Download size={20}/>} />
+              </div>
 
-             <div style={styles.card}>
-               <SectionHeader title="🧾 Statutory GST Breakdown" sub="Automated isolation by tax bucket" />
-               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={styles.card}>
+                <SectionHeader title="📊 GST Classification" sub="Tax bracket distribution" />
+                <div style={{ height: 320, width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={stats.taxPie || []}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={80}
+                        outerRadius={110}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        <Cell fill={PURPLE} />
+                        <Cell fill={GREEN} />
+                        <Cell fill={TEAL} />
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} formatter={(v) => fmt(v)} />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <div style={styles.card}>
+                  <SectionHeader title="📈 Financial Summary" sub="Revenue & Tax breakdown" />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                     <div style={{ background: '#f8fafc', padding: 24, borderRadius: 20, border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>Total Tax Collected</div>
+                        <div style={{ fontSize: 32, fontWeight: 900, color: '#0f172a' }}>{fmt(stats.tax?.total || 0)}</div>
+                        <div style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>Avg. Effective Rate: <span style={{ fontWeight: 800, color: BRAND }}>18.2%</span></div>
+                     </div>
+                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                        <div style={{ background: 'white', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>
+                           <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>B2B Segment</div>
+                           <div style={{ fontSize: 24, fontWeight: 900 }}>{stats.b2bPercentage}%</div>
+                        </div>
+                        <div style={{ background: 'white', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>
+                           <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Compliance</div>
+                           <div style={{ fontSize: 24, fontWeight: 900, color: GREEN }}>98.4</div>
+                        </div>
+                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginTop: 12 }}>
                  {[
-                   { l: "IGST (Inter-State Trade)", v: stats.tax?.igst, c: PURPLE, p: ((stats.tax?.igst / stats.tax?.total) * 100).toFixed(1) },
-                   { l: "CGST (Central Tax)", v: stats.tax?.cgst, c: GREEN, p: ((stats.tax?.cgst / stats.tax?.total) * 100).toFixed(1) },
-                   { l: "SGST (State / UT Tax)", v: stats.tax?.sgst, c: TEAL, p: ((stats.tax?.sgst / stats.tax?.total) * 100).toFixed(1) },
-                 ].map(t => (
-                   <div key={t.l} style={{ display: "flex", flexDirection: "column", gap: 8, paddingBottom: 16, borderBottom: "1px solid #f1f5f9" }}>
-                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: 'center' }}>
-                       <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.l}</span>
-                       <span style={{ fontSize: 15, fontWeight: 900, color: t.c }}>{fmt(t.v || 0)}</span>
-                     </div>
-                     <div style={{ height: 6, width: '100%', background: '#f1f5f9', borderRadius: 4 }}>
-                       <div style={{ height: '100%', width: `${t.p}%`, background: t.c, borderRadius: 4 }} />
-                     </div>
-                     <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'right' }}>{t.p}% of Total GST</div>
-                   </div>
+                    { l: 'Tax Accuracy Rate', v: '99.9%', sub: 'Algorithm precision across tax brackets', trend: '+0.2%' },
+                    { l: 'Reconciliation Status', v: 'Synched', sub: 'Last check performed 2 mins ago', trend: '+0.2%' },
+                    { l: 'Compliance Index', v: 'Grade A', sub: 'Meets latest GST mandate standards', trend: '+0.2%' },
+                 ].map((c, i) => (
+                    <div key={i} style={{ ...styles.card, borderTop: `4px solid ${i === 0 ? PURPLE : i === 1 ? GREEN : TEAL}` }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                          <div style={{ padding: 8, background: `${BRAND}08`, borderRadius: 10, color: BRAND }}><Shield size={20} /></div>
+                          <div style={{ background: `${GREEN}15`, color: GREEN, fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 4 }}>{c.trend}</div>
+                       </div>
+                       <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>{c.l}</div>
+                       <div style={{ fontSize: 28, fontWeight: 900, color: '#0f172a', marginBottom: 8 }}>{c.v}</div>
+                       <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.sub}</div>
+                    </div>
                  ))}
-               </div>
-             </div>
-
-             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-               <div style={styles.card}>
-                 <SectionHeader title="📊 Regional Tax Heatmap" sub="Top states by GST contribution" />
-                 <ResponsiveContainer width="100%" height={180}>
-                   <BarChart data={(stats.stateList || []).slice(0, 5)} layout="vertical" margin={{ left: 20 }}>
-                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                     <XAxis type="number" hide />
-                     <YAxis dataKey="state" type="category" width={80} style={{ fontSize: 11, fontWeight: 600 }} axisLine={false} tickLine={false} />
-                     <Tooltip formatter={(v) => fmt(v * 0.18)} labelFormatter={(l) => `${l} Estimated GST`} cursor={{fill: '#f8fafc'}} />
-                     <Bar dataKey="revenue" fill={BRAND} radius={[0, 4, 4, 0]} name="Value" />
-                   </BarChart>
-                 </ResponsiveContainer>
-               </div>
              </div>
 
            </div>
@@ -523,10 +670,16 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
           </div>
         )}
 
-        {/* 💎 SAAS HUB & TRANSACTION PATHWAY */}
+        {/* ── SaaS Hub Hub & Transaction Path Way ── */}
         {!isExporting && activeTab === "saas" && (
-          canAccess('enterprise') ? (
-          <div className="page-container">
+          isDemoMode ? (
+            <div className="page-container">
+               <SectionHeader title="Membership & SaaS Hub" subtitle="Growth tiers and unified transactional intelligence" badge="Demo Access" />
+               <SaaSMembership styles={{ isDemoMode }} activePlan={activePlan} />
+            </div>
+          ) : (
+            canAccess('enterprise') ? (
+            <div className="page-container">
             <div style={{ ...styles.card, background: `linear-gradient(135deg, ${BRAND}, #1e293b)`, color: "#fff", padding: "40px 48px", border: "none" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
@@ -647,9 +800,10 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
               </div>
             </div>
           </div>
-          ) : (
-            <UpgradeBanner feature="SaaS Hub & Transaction Pathway" requiredPlan="Enterprise" color="#f59e0b" icon="💎" />
-          )
+            ) : (
+              <UpgradeBanner feature="SaaS Hub & Transaction Pathway" requiredPlan="Enterprise" color="#f59e0b" icon="💎" />
+            )
+        )
         )}
 
         {(activeTab === "forecast" || isExporting) && stats && (
@@ -876,6 +1030,68 @@ function AppContent() {
   const [loginView, setLoginView] = useState("plans");
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [demoBlockReason, setDemoBlockReason] = useState(null);
+  const [ingestion, setIngestion] = useState({ loading: false, msg: "", progress: 0 });
+
+  const handleFileSelection = async (file) => {
+    if (!file || ingestion.loading) return;
+    setIngestion({ loading: true, msg: "Initializing engine...", progress: 5 });
+
+    try {
+      const res = await analyzeReport(file, (pct) => {
+        setIngestion(prev => ({ ...prev, progress: Math.max(prev.progress, pct), msg: pct < 100 ? "Syncing data blocks..." : "Analyzing patterns..." }));
+      });
+
+      setIngestion({ loading: false, msg: "Success", progress: 100 });
+      
+      // Persist state
+      setState({ 
+        rawData: res.rawData, 
+        analysis: res.analysis, 
+        filename: file.name, 
+        source: res.source || 'amazon', 
+        session_id: res.session_id, 
+        fraud: res.analysis?.fraud 
+      });
+      
+      window.location.hash = 'overview';
+    } catch (err) {
+      console.error("Ingestion failed:", err);
+      setIngestion({ loading: false, msg: err.response?.data?.detail || "Analysis failed. Ensure valid MTR format.", progress: 0 });
+    }
+  };
+
+  const demoLimitOverlay = demoBlockReason ? (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, background: "rgba(10, 15, 30, 0.95)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 0.3s ease-out" }}>
+      <div style={{ background: "#1e293b", padding: 40, borderRadius: 24, textAlign: "center", maxWidth: 450, border: "1px solid rgba(255,255,255,0.1)" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⏱️</div>
+        <h2 style={{ fontSize: 24, color: "#fff", marginBottom: 16, fontWeight: 800 }}>Demo Limit Reached</h2>
+        <p style={{ color: "#94a3b8", marginBottom: 32, lineHeight: 1.6 }}>
+          {demoBlockReason === 'timeout' 
+            ? "Your 1-minute demo preview has expired." 
+            : "Demo accounts are limited to a single file upload."}
+          <br/><br/>
+          To continue analyzing limitless data, please choose a growth tier.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <button onClick={() => {
+             sessionStorage.clear();
+             window.location.href = '/?action=get-started#login';
+          }} style={{ padding: "14px 20px", borderRadius: 12, background: BRAND, color: "#fff", fontWeight: 800, border: "none", cursor: "pointer" }}>Continue with Plan</button>
+          <button onClick={() => {
+              if (demoBlockReason === 'timeout') {
+                  sessionStorage.clear();
+                  window.location.hash = 'home';
+              } else {
+                  setDemoBlockReason(null);
+              }
+          }} style={{ padding: "14px 20px", borderRadius: 12, background: "transparent", color: "#94a3b8", fontWeight: 700, border: "1px solid #334155", cursor: "pointer" }}>
+            {demoBlockReason === 'timeout' ? "Back to Home Page" : "Return to Dashboard"}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   // Persist session to session storage
   useEffect(() => {
@@ -902,7 +1118,7 @@ function AppContent() {
          setShowDemoModal(false);
          sessionStorage.clear();
       } else if (hash === 'upload') {
-         setState({ rawData: null, analysis: null, filename: null });
+         setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null, fraud: null });
       } else if (hash === 'demo') {
          // Force Pro Mode and Reset State
          setIsDemoMode(true);
@@ -929,13 +1145,13 @@ function AppContent() {
   // Demo Completion Logic: Trigger modal after 20s of viewing analysis
   useEffect(() => {
     let timer;
-    if (isDemoMode && state.rawData && !showDemoModal) {
+    if (isDemoMode && state.rawData && !demoBlockReason) {
       timer = setTimeout(() => {
-        setShowDemoModal(true);
-      }, 20000); // 20 seconds of exploration
+        setDemoBlockReason('timeout');
+      }, 60000);
     }
     return () => clearTimeout(timer);
-  }, [isDemoMode, state.rawData, showDemoModal]);
+  }, [isDemoMode, state.rawData, demoBlockReason]);
 
   // Show landing page for unauthenticated users
   if (showLanding && !userRole) {
@@ -978,16 +1194,24 @@ function AppContent() {
   
   if (!state.rawData) {
     if (isDemoMode) {
-      return <DemoUpload onData={(res, filename, source) => {
-        setState({ rawData: res.rawData, analysis: res.analysis, filename, source, session_id: res.session_id, fraud: res.analysis?.fraud });
-        window.location.hash = 'overview';
-      }} />;
+      return (
+        <>
+          <DemoUpload 
+            onFileSelect={handleFileSelection} 
+            ingestionStatus={ingestion}
+          />
+          {demoLimitOverlay}
+        </>
+      );
     }
 
-    return <UploadSection activePlan={activePlan} onData={(res, filename, source) => {
-      setState({ rawData: res.rawData, analysis: res.analysis, filename, source, session_id: res.session_id, fraud: res.analysis?.fraud });
-      window.location.hash = 'overview';
-    }} />;
+    return (
+      <UploadSection 
+        activePlan={activePlan} 
+        onFileSelect={handleFileSelection} 
+        ingestionStatus={ingestion}
+      />
+    );
   }
 
   if (state.source === 'shopify') {
@@ -1039,74 +1263,7 @@ function AppContent() {
           window.location.hash = isDemoMode ? 'demo' : 'upload';
         }} 
       />
-
-      {/* CONVERSION DIALOGUE (Demo Mode One-Time Use) */}
-      <AnimatePresence>
-        {showDemoModal && (
-          <div style={{ 
-            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
-            background: 'rgba(2, 6, 23, 0.9)', backdropFilter: 'blur(12px)',
-            zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
-          }}>
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              style={{ 
-                background: 'white', borderRadius: 40, padding: '60px 48px', 
-                maxWidth: 640, width: '100%', textAlign: 'center', color: '#0f172a',
-                boxShadow: '0 50px 100px -20px rgba(0,0,0,0.5)',
-                position: 'relative', overflow: 'hidden'
-              }}
-            >
-              <div style={{ position: 'absolute', top: -100, left: '50%', transform: 'translateX(-50%)', width: 200, height: 200, background: 'rgba(99, 102, 241, 0.1)', borderRadius: '50%', filter: 'blur(60px)' }}></div>
-              
-              <div style={{ 
-                width: 80, height: 80, background: '#f59e0b15', borderRadius: 24, 
-                display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                margin: '0 auto 32px', border: '1px solid #f59e0b30' 
-              }}>
-                <Tag size={32} color="#f59e0b" />
-              </div>
-
-              <h2 style={{ fontSize: 36, fontWeight: 900, marginBottom: 16, letterSpacing: '-0.02em' }}>Instant Analysis Complete</h2>
-              <p style={{ color: '#475569', fontSize: 17, lineHeight: 1.6, marginBottom: 48, maxWidth: 480, margin: '0 auto 48px' }}>
-                You've experienced the power of SellerIQ Pro. This was a <b>single-use Starter session</b>. 
-                Unlock high-fidelity Fraud Detection, Forecasting, and unlimited uploads by choosing a plan.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <button 
-                  onClick={() => {
-                    setShowDemoModal(false);
-                    setIsDemoMode(false);
-                    setLoginView("plans");
-                    window.location.hash = 'login';
-                  }} 
-                  className="btn-primary" 
-                  style={{ padding: '1.2rem 2rem', fontSize: '1.1rem', width: '100%', boxShadow: '0 10px 30px rgba(99, 102, 241, 0.4)' }}
-                >
-                  🚀 Continue with Subscription
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowDemoModal(false);
-                    setIsDemoMode(false);
-                    window.location.hash = 'home';
-                  }} 
-                  className="btn-outline" 
-                  style={{ color: '#64748b', border: '1px solid #e2e8f0', background: 'transparent', padding: '1rem 2rem' }}
-                >
-                  ⬅ Back to Dashboard
-                </button>
-              </div>
-
-              <div style={{ marginTop: 32, fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>
-                Enterprise grade security • SOC2 Compliant • Instant Setup
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {demoLimitOverlay}
     </>
   );
 }

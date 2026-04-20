@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Users, Shield, Calendar, Clock, CreditCard, CheckCircle, Search, LogOut, ArrowUpRight, Bell, Database, Activity, Mail, Server, Settings, Cpu, HardDrive, TerminalSquare, TrendingUp, ToggleRight, ToggleLeft, DollarSign, Phone, Menu, X } from "lucide-react";
+import { Users, Shield, Calendar, Clock, CreditCard, CheckCircle, Search, LogOut, ArrowUpRight, Bell, Database, Activity, Mail, Server, Settings, Cpu, HardDrive, TerminalSquare, TrendingUp, ToggleRight, ToggleLeft, DollarSign, Phone, Menu, X, AlertTriangle } from "lucide-react";
 import "../responsive_overrides.css";
 
 const AdminPanel = ({ onLogout }) => {
@@ -9,6 +9,7 @@ const AdminPanel = ({ onLogout }) => {
   const [adminTab, setAdminTab] = useState("hub");
   const [registeredUsers, setRegisteredUsers] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [settingsState, setSettingsState] = useState({ maintenance: false, registration: true, debug: true });
 
   const tabStyle = {
@@ -19,8 +20,8 @@ const AdminPanel = ({ onLogout }) => {
   };
 
   useEffect(() => {
-    if (adminTab === "hub" || adminTab === "billing") {
-      fetch('http://192.168.1.5:5000/api/admin/users')
+    if (adminTab === "hub" || adminTab === "billing" || adminTab === "monitoring") {
+      fetch('http://localhost:5000/api/admin/users')
         .then(r => r.json())
         .then(d => { if (d.success) setRegisteredUsers(d.users); })
         .catch(() => {});
@@ -129,6 +130,7 @@ const AdminPanel = ({ onLogout }) => {
       <nav style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 32 }}>
         {[
           { id: "hub", label: "Network Hub", Icon: Activity },
+          { id: "monitoring", label: "Sub Monitoring", Icon: TrendingUp },
           { id: "logs", label: "System Logs", Icon: Server },
           { id: "billing", label: "Billing Engines", Icon: CreditCard },
           { id: "settings", label: "Global Settings", Icon: Settings },
@@ -278,6 +280,113 @@ const AdminPanel = ({ onLogout }) => {
                         <td>{getStatusBadge(u.status)}</td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {adminTab === "monitoring" && (
+          <>
+            <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <div>
+                <h2 style={{ fontSize: 28, fontWeight: 900, color: "#0f172a", margin: "0" }}>Subscription Monitoring</h2>
+                <div style={{ color: "#64748b", fontSize: 15, marginTop: 4 }}>Track client renewals and manage expiry notifications.</div>
+              </div>
+              <button 
+                onClick={async () => {
+                   setIsLoading(true);
+                   try {
+                     const res = await fetch('http://localhost:5000/api/admin/send-expiry-warnings', { method: 'POST' });
+                     const data = await res.json();
+                     setToast(`Successfully sent ${data.emails_sent} warning emails.`);
+                   } catch {
+                     setToast("Failed to send warning emails.");
+                   } finally {
+                     setIsLoading(false);
+                     setTimeout(() => setToast(null), 3000);
+                   }
+                }}
+                disabled={isLoading}
+                style={{ 
+                  background: 'linear-gradient(135deg, #ea580c, #c2410c)', color: 'white', 
+                  border: 'none', padding: '12px 24px', borderRadius: 12, fontWeight: 800, 
+                  fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                  boxShadow: '0 4px 12px rgba(234, 88, 12, 0.2)'
+                }}
+              >
+                <Mail size={18} /> {isLoading ? "Sending..." : "Send Expiry Warnings"}
+              </button>
+            </div>
+
+            <div className="admin-grid" style={{ marginBottom: 40 }}>
+              {[
+                { label: "Active Subs", val: ALL_USERS.filter(u => u.sub_status === "Active").length, color: "#16a34a", bg: "#dcfce7", icon: CheckCircle },
+                { label: "Expiring Soon", val: ALL_USERS.filter(u => u.sub_status === "Expiring Soon").length, color: "#ca8a04", bg: "#fef9c3", icon: Bell },
+                { label: "Expired", val: ALL_USERS.filter(u => u.sub_status === "Expired").length, color: "#dc2626", bg: "#fef2f2", icon: X },
+                { label: "Total MRR", val: `₹${billingMetrics.mrr.toLocaleString()}`, color: "#4f46e5", bg: "#e0e7ff", icon: DollarSign },
+              ].map((k, i) => (
+                <div key={i} className="stat-card">
+                  <div style={{ background: k.bg, color: k.color, width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><k.icon size={20} /></div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>{k.label}</div>
+                    <div style={{ fontSize: 32, fontWeight: 900, color: "#0f172a", marginTop: 4 }}>{k.val}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: "white", borderRadius: 16, padding: 24, border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
+               <div style={{ overflowX: "auto" }}>
+                <table className="admin-table">
+                  <thead>
+                    <tr><th>Client Node</th><th>Active Plan</th><th>Expiry Date</th><th>Days Left</th><th>Status</th><th>Notification</th></tr>
+                  </thead>
+                  <tbody>
+                    {ALL_USERS.map((u, i) => {
+                       const days = u.days_left ?? 0;
+                       const statusStyle = 
+                        u.sub_status === "Expired" ? { bg: "#fee2e2", text: "#b91c1c" } :
+                        u.sub_status === "Expiring Soon" ? { bg: "#fef9c3", text: "#a16207" } :
+                        { bg: "#dcfce7", text: "#15803d" };
+
+                       return (
+                        <tr key={i}>
+                          <td>
+                            <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 13 }}>{u.name || u.email}</div>
+                            <div style={{ fontSize: 11, color: "#64748b" }}>ID: {u.user_id}</div>
+                          </td>
+                          <td>
+                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                               {getPlanIcon(u.plan)}
+                               <span style={{ fontWeight: 700, fontSize: 13 }}>{capitalize(u.plan)}</span>
+                             </div>
+                          </td>
+                          <td style={{ fontWeight: 600, color: "#475569" }}>{u.expiry_date || "—"}</td>
+                          <td>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: days < 0 ? "#ef4444" : days < 3 ? "#eab308" : "#0f172a" }}>
+                              {days < 0 ? `${Math.abs(days)}d Overdue` : `${days} days left`}
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{ 
+                              padding: "4px 10px", borderRadius: "100px", fontSize: 11, fontWeight: 800, 
+                              background: statusStyle.bg, color: statusStyle.text, border: `1px solid ${statusStyle.text}20` 
+                            }}>
+                              {u.sub_status?.toUpperCase()}
+                            </span>
+                          </td>
+                          <td>
+                             {days <= 3 && (
+                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#f97316', fontSize: 11, fontWeight: 700 }}>
+                                 <AlertTriangle size={12} /> Needs Warning
+                               </div>
+                             )}
+                          </td>
+                        </tr>
+                       );
+                    })}
                   </tbody>
                 </table>
               </div>

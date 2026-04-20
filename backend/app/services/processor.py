@@ -3,9 +3,9 @@ import io
 import math
 import pandas as pd
 from datetime import datetime
-from utils.helpers import is_float
-from services.forecast import calculate_forecasts
-from services.fraud_engine import generate_fraud_alerts
+from app.utils.helpers import is_float, safe_float
+from .forecast import calculate_forecasts
+from .fraud_engine import generate_fraud_alerts
 
 def parse_uploaded_data(content: str):
     f = io.StringIO(content.strip())
@@ -88,9 +88,9 @@ def process_data(rows):
         if not d: continue
         if d not in byDate:
             byDate[d] = {"date": d, "revenue": 0, "orders": 0, "units": 0}
-        byDate[d]["revenue"] += r.get("Invoice Amount") or 0
+        byDate[d]["revenue"] += safe_float(r.get("Invoice Amount"))
         byDate[d]["orders"] += 1
-        byDate[d]["units"] += r.get("Quantity") or 0
+        byDate[d]["units"] += safe_float(r.get("Quantity"))
         
     dailySales = sorted(list(byDate.values()), key=lambda x: x["date"])
     
@@ -138,10 +138,10 @@ def process_data(rows):
         sku = r.get("Sku") or "UNKNOWN"
         if sku not in bySku:
             bySku[sku] = {"sku": sku, "desc": r.get("Item Description") or sku, "revenue": 0, "units": 0, "orders": 0, "principal": 0}
-        bySku[sku]["revenue"] += r.get("Invoice Amount") or 0
-        bySku[sku]["units"] += r.get("Quantity") or 0
+        bySku[sku]["revenue"] += safe_float(r.get("Invoice Amount"))
+        bySku[sku]["units"] += safe_float(r.get("Quantity"))
         bySku[sku]["orders"] += 1
-        bySku[sku]["principal"] += r.get("Principal Amount") or 0
+        bySku[sku]["principal"] += safe_float(r.get("Principal Amount"))
         
     skuList = sorted(list(bySku.values()), key=lambda x: x["revenue"], reverse=True)
     
@@ -150,25 +150,25 @@ def process_data(rows):
         st = r.get("Ship To State") or "Unknown"
         if st not in byState:
             byState[st] = {"state": st, "revenue": 0, "orders": 0, "units": 0, "igst": 0}
-        byState[st]["revenue"] += r.get("Invoice Amount") or 0
+        byState[st]["revenue"] += safe_float(r.get("Invoice Amount"))
         byState[st]["orders"] += 1
-        byState[st]["units"] += r.get("Quantity") or 0
-        byState[st]["igst"] += r.get("Igst Tax") or 0
+        byState[st]["units"] += safe_float(r.get("Quantity"))
+        byState[st]["igst"] += safe_float(r.get("Igst Tax"))
         
     stateList = sorted(list(byState.values()), key=lambda x: x["revenue"], reverse=True)
     
     tax = {
-        "cgst": sum((r.get("Cgst Tax") or 0) for r in shipments),
-        "sgst": sum((r.get("Sgst Tax") or 0) for r in shipments),
-        "igst": sum((r.get("Igst Tax") or 0) for r in shipments),
+        "cgst": sum(safe_float(r.get("Cgst Tax")) for r in shipments),
+        "sgst": sum(safe_float(r.get("Sgst Tax")) for r in shipments),
+        "igst": sum(safe_float(r.get("Igst Tax")) for r in shipments),
     }
     tax["total"] = tax["cgst"] + tax["sgst"] + tax["igst"]
     taxPie = [{"name": "IGST", "value": tax["igst"]}, {"name": "CGST", "value": tax["cgst"]}, {"name": "SGST", "value": tax["sgst"]}]
     taxPie = [t for t in taxPie if t["value"] > 0]
     
-    totalRevenue = sum((r.get("Invoice Amount") or 0) for r in shipments)
+    totalRevenue = sum(safe_float(r.get("Invoice Amount")) for r in shipments)
     totalOrders = len(shipments)
-    totalDiscount = abs(sum((r.get("Item Promo Discount") or 0) for r in shipments))
+    totalDiscount = abs(sum(safe_float(r.get("Item Promo Discount")) for r in shipments))
     returnCount = len(returns)
     returnRate = f"{(returnCount / totalOrders * 100):.1f}" if totalOrders else "0"
     avgOrderValue = totalRevenue / totalOrders if totalOrders else 0
@@ -181,7 +181,7 @@ def process_data(rows):
     days = len(dailySales) or 1
     skuVelocity = [{**s, "dailyVelocity": s["units"] / days} for s in skuList]
     
-    fraud_alerts = generate_fraud_alerts(returns)
+    fraud_alerts = generate_fraud_alerts(shipments, returns)
             
     for r in rows:
         if "_isoDate" in r:

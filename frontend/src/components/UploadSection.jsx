@@ -2,79 +2,29 @@ import React, { useState } from "react";
 import { analyzeReport } from "../api";
 import { UploadCloud, Cpu, ShieldAlert, FileSpreadsheet, Lock, Box, ShoppingCart, Database, CheckCircle2, Activity } from "lucide-react";
 
-const UploadSection = ({ onData, activePlan = 'starter' }) => {
-  // Track monthly upload count in localStorage
-  const getUploadKey = () => {
-    const now = new Date();
-    return `selleriq_uploads_${activePlan}_${now.getFullYear()}_${now.getMonth() + 1}`;
-  };
-  const getUploadCount = () => parseInt(localStorage.getItem(getUploadKey()) || '0', 10);
-  const incrementUploadCount = () => {
-    const key = getUploadKey();
-    localStorage.setItem(key, String(getUploadCount() + 1));
-  };
-
-  const PLAN_LIMITS = { starter: 9999, pro: 9999, enterprise: 9999 };
-  const fileLimit = PLAN_LIMITS[activePlan] ?? 9999;
-  const currentUploads = getUploadCount();
-
+const UploadSection = ({ onFileSelect, activePlan = 'starter', usageStats, ingestionStatus }) => {
   const [drag, setDrag] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [migrationStatus, setMigrationStatus] = useState(0); // For progress bar
-  const [source, setSource] = useState('amazon'); // 'amazon', 'shopify', 'custom'
+  const loading = ingestionStatus?.loading || false;
+  const msg = ingestionStatus?.msg || "";
+  const migrationStatus = ingestionStatus?.progress || 0;
+  const source = 'amazon'; 
 
-  const handleFile = async (file) => {
-    if (!file) return;
+  const handleFileLocal = async (file) => {
+    if (!file || loading) return;
 
-    // Enforce Monthly upload limit
-    if (currentUploads >= fileLimit) {
-      setMsg(`⚠️ Monthly upload limit reached for ${activePlan.toUpperCase()} plan (${fileLimit} files). Please upgrade your subscription for additional capacity.`);
-      return;
-    }
+    // Reset input so same file can be selected twice if needed
+    try { if (document.getElementById("fileInput")) document.getElementById("fileInput").value = ""; } catch(e) {}
 
-    // Enforce Plan-Based File Limits
-    const MAX_SIZE = activePlan === 'starter' ? 1 * 1024 * 1024 : 50 * 1024 * 1024; // 1MB for Starter, 50MB for others
-    if (file.size > MAX_SIZE) {
-      if (activePlan === 'starter') {
-        setMsg(`⚠️ Trial limit exceeded (1MB). Please upgrade to Pro for files up to 50MB.`);
-      } else {
-        setMsg(`⚠️ Upload limit exceeded (50MB). For larger enterprise migrations, please use the API Integration Hub.`);
-      }
-      return;
-    }
-
-    setLoading(true); 
-    setMsg("Authenticating data source...");
-    setMigrationStatus(15);
+    // Local Size sanity check before passing to parent
+    const MAX_SIZE = activePlan === 'starter' ? 5 * 1024 * 1024 : 
+                    activePlan === 'pro' ? 100 * 1024 * 1024 : 500 * 1024 * 1024;
     
-    setTimeout(() => {
-        if(loading) setMigrationStatus(45);
-    }, 400);
-
-    let hasError = false;
-    try {
-      const result = await analyzeReport(file);
-      
-      if (result.success) {
-        setMigrationStatus(100);
-        setMsg("Migration complete. Finalizing workspace...");
-        incrementUploadCount(); // count successful upload
-        // Re-hydrate Date objects after JSON serialization
-        if (result.rawData) {
-          result.rawData.forEach(r => {
-            if (r._isoDate) r._isoDate = new Date(r._isoDate);
-          });
-        }
-        setTimeout(() => onData(result, file.name, source), 800); 
-      }
-    } catch (err) { 
-      setMsg("Migration failed: " + err.message); 
-      setMigrationStatus(0);
-      hasError = true;
-    } finally {
-      if(hasError) setLoading(false); 
+    if (file.size > MAX_SIZE) {
+       alert(`File too large for ${activePlan.toUpperCase()} plan.`);
+       return;
     }
+
+    onFileSelect(file);
   };
 
   return (
@@ -278,12 +228,14 @@ const UploadSection = ({ onData, activePlan = 'starter' }) => {
         <div style={{ width: '100%', maxWidth: 900, display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
           {(() => {
             const planColors = { starter: '#10b981', pro: '#3b82f6', enterprise: '#f59e0b' };
-            const pColor = planColors[activePlan] || '#818cf8';
+            const pColor = planColors[activePlan.toLowerCase()] || '#818cf8';
+            const used = usageStats?.used || 0;
+            const limit = usageStats?.limit || 3;
             return (
               <div style={{ fontSize: 12, fontWeight: 800, color: '#f8fafc', padding: '6px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 20, border: '1px solid rgba(255,255,255,0.1)', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', backdropFilter: 'blur(10px)' }}>
                 <Activity size={14} color={pColor} /> 
                 <span style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ color: '#fff', fontSize: 13 }}>{currentUploads} <span style={{ color: '#64748b' }}>/</span> {fileLimit}</span> 
+                  <span style={{ color: '#fff', fontSize: 13 }}>{used} <span style={{ color: '#64748b' }}>/</span> {limit}</span> 
                   <span style={{ color: '#94a3b8', margin: '0 8px' }}>UPLOADS USED</span> 
                   <span style={{ padding: '2px 8px', background: pColor + '20', color: pColor, borderRadius: 8, fontSize: 10, letterSpacing: 1, border: `1px solid ${pColor}40` }}>{activePlan.toUpperCase()}</span>
                 </span>
@@ -296,7 +248,7 @@ const UploadSection = ({ onData, activePlan = 'starter' }) => {
           className={`drop-zone ${drag ? 'active' : ''}`}
           onDragOver={e => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
-          onDrop={e => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]); }}
+          onDrop={e => { e.preventDefault(); setDrag(false); handleFileLocal(e.dataTransfer.files[0]); }}
           onClick={() => !loading && document.getElementById("fileInput").click()}
         >
           <div className={`upload-icon-wrapper ${loading ? 'pulse' : ''}`}>
@@ -309,7 +261,7 @@ const UploadSection = ({ onData, activePlan = 'starter' }) => {
           <p style={{ color: "#64748b", margin: 0 }}>
             {loading 
               ? "Please wait while we normalize and scrub your dataset." 
-              : `Or click anywhere in this zone to browse your files. Supports .CSV formats up to ${activePlan === 'starter' ? '1MB' : '50MB'} (${activePlan.toUpperCase()} Plan).`}
+              : `Supports .CSV formats up to ${activePlan === 'starter' ? '5MB' : activePlan === 'pro' ? '100MB' : '500MB'} (${activePlan.toUpperCase()} Plan • 1 Month).`}
           </p>
 
           {loading && (
@@ -317,14 +269,28 @@ const UploadSection = ({ onData, activePlan = 'starter' }) => {
               <div className="progress-bar-bg">
                 <div className="progress-bar-fill" style={{ width: `${migrationStatus}%` }}></div>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#818cf8", fontWeight: 600 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#818cf8", fontWeight: 600, marginBottom: 12 }}>
                 <span>{msg}</span>
                 <span>{migrationStatus}%</span>
               </div>
+              
+              {migrationStatus === 100 && (
+                <button 
+                  onClick={() => window.location.hash = 'overview'}
+                  style={{ 
+                    marginTop: 10, width: '100%', padding: '12px', background: 'white', 
+                    color: '#6366f1', borderRadius: 12, fontWeight: 800, border: 'none', 
+                    cursor: 'pointer', boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                    animation: 'fadeIn 0.3s ease-out'
+                  }}
+                >
+                  🚀 Launch Dynamic Dashboard
+                </button>
+              )}
             </div>
           )}
           
-          <input id="fileInput" type="file" accept=".csv" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
+          <input id="fileInput" type="file" accept=".csv" style={{ display: "none" }} onChange={e => handleFileLocal(e.target.files[0])} />
         </div>
 
         {msg && !loading && (

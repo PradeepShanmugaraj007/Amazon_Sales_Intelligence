@@ -37,9 +37,15 @@
   /* GLOBAL UTILITIES for Mobile */
   .hide-on-mobile { display: none !important; }
   
-  /* LANDING PAGE - Full Mobile Refactor */
-  /* Prevent Horizontal Scrolling / Overflow globally on mobile */
-  html, body { overflow-x: hidden !important; width: 100vw !important; }
+  /* ULTRA-FIT: Prevent Horizontal Scrolling / Overflow globally on mobile */
+  html, body { 
+    overflow-x: hidden !important; 
+    width: 100vw !important; 
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  * { box-sizing: border-box !important; max-width: 100%; }
 
   /* LANDING PAGE - Full Mobile Refactor */
   header { padding: 1rem 1.25rem !important; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); flex-direction: row !important; align-items: center !important; justify-content: space-between !important; }
@@ -49,7 +55,7 @@
   .auth-buttons button { padding: 8px 12px !important; font-size: 0.8rem !important; width: auto !important; margin: 0 !important; border-radius: 8px !important; }
   
   .hero { padding: 8rem 1.25rem 3rem !important; text-align: left !important; grid-template-columns: 1fr !important; gap: 2rem !important; }
-  .hero-content h1 { font-size: 2.25rem !important; line-height: 1.1 !important; letter-spacing: -1.5px !important; word-wrap: break-word !important; }
+  .hero-content h1 { font-size: 2.25rem !important; line-height: 1.1 !important; letter-spacing: -1.5px !important; word-break: break-all !important; }
   .hero-content p { font-size: 1.1rem !important; margin: 0 auto 2.5rem !important; }
   .hero-actions { flex-direction: column !important; width: 100% !important; gap: 12px !important; }
   .hero-actions button { width: 100% !important; padding: 1.1rem !important; justify-content: center !important; text-align: center !important; display: block !important; }
@@ -65,9 +71,9 @@
   .sync-container { gap: 3rem; }
 
   /* DASHBOARD - Mobile Optimization */
-  .dash-main { margin-left: 0 !important; padding: 75px 12px 24px !important; }
+  .dash-main { margin-left: 0 !important; padding: 75px 12px 24px !important; width: 100vw !important; overflow-x: hidden !important; }
   .dash-header { flex-direction: column; align-items: flex-start !important; gap: 12px; }
-  .dash-filter-bar { flex-wrap: wrap; gap: 8px !important; }
+  .dash-filter-bar { flex-wrap: wrap; gap: 8px !important; width: 100%; }
   
   /* Force all Dashboard grids and inline grids to single column stack */
   .dash-grid-4, .dash-grid-2, .admin-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
@@ -81,22 +87,67 @@
   .dash-path-line { display: none !important; }
   
   /* Additional safety for small mobile screens (e.g. 375px) */
-  .stat-card, .card, [style*="box-shadow"] { padding: 16px !important; }
+  .stat-card, .card, [style*="box-shadow"], .glass { 
+    padding: 12px !important; 
+    width: 100% !important;
+    word-break: break-word !important;
+  }
   
-  /* Horizontal scroll for table instead of squishing */
-  .responsive-table-container, [style*="overflow-x"] { overflow-x: auto !important; -webkit-overflow-scrolling: touch; margin: 0 -12px; padding: 0 12px; }
+  /* TABLE COMPACTION: Hide non-critical columns on mobile to prevent overflow */
+  .responsive-table-container, [style*="overflow-x"] { 
+    overflow-x: auto !important; 
+    -webkit-overflow-scrolling: touch; 
+    margin: 0 -8px; 
+    width: calc(100% + 16px);
+  }
   
-  /* ADMIN PANEL - Mobile Overrides */
-  .admin-bg { flex-direction: column; }
-  .admin-sidebar-desktop { display: none !important; }
-  .admin-mobile-nav { display: flex !important; }
-  .admin-content { padding: 80px 12px 24px !important; margin-left: 0 !important; }
-  .admin-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
-  .admin-header-row { flex-direction: column; align-items: flex-start !important; gap: 16px; }
-  .search-container, .search-input { width: 100% !important; }
+  /* Hide columns like 'HSN/SAC' or 'Refund ID' on very small screens to make others fit */
+  th:nth-child(3), td:nth-child(3),
+  th:nth-child(5), td:nth-child(5),
+  th:nth-child(6), td:nth-child(6) {
+     display: none !important; 
+  }
+
+  /* Force table not to push out */
+  table { width: 100% !important; min-width: auto !important; table-layout: fixed !important; }
+  td, th { padding: 4px 8px !important; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Data wrapping for long IDs outside tables */
+  span, div { word-break: break-word !important; }
+
+  /* -----------------------------------------------------------
+     NEW PROFESSIONAL ALIGNMENT OVERRIDES (FITTED)
+     ----------------------------------------------------------- */
+
+  /* RISK ANALYSIS - Professional Stacking */
+  [style*="display: flex"][style*="justify-content: space-between"][style*="flex-wrap: wrap"] {
+     flex-direction: column !important;
+     width: 100% !important;
+     gap: 12px !important;
+     align-items: stretch !important;
+  }
   
-  /* Large touch targets */
-  .btn-logout { width: 100%; height: 48px; }
+  [style*="min-width: 450px"], [style*="min-width: 300px"] {
+     min-width: 100% !important;
+     flex: 1 1 100% !important;
+  }
+
+  /* Force Donut Chart and Reason List to stack vertically */
+  [style*="display: flex"][style*="align-items: center"][style*="gap: 24px"] {
+     flex-direction: column !important;
+     gap: 16px !important;
+     align-items: center !important;
+     text-align: center !important;
+  }
+
+  /* MIGRATION PORTAL - fitted */
+  .upload-bg { padding: 40px 12px !important; }
+  .header-content h1 { font-size: 24px !important; }
+  .header-content > div:nth-child(3) { width: 100% !important; padding: 16px !important; }
+  .feature-grid { grid-template-columns: 1fr !important; }
+
+  /* Chart Legend/Labels prevention */
+  .recharts-legend-wrapper { position: static !important; }
 }
 
 
