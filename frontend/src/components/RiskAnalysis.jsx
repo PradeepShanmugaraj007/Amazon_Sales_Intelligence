@@ -1,212 +1,591 @@
-import React from 'react';
-import { ShieldAlert, ShieldCheck, AlertTriangle, Info, TrendingDown, DollarSign, MapPin, Package, History } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useAppContext } from '../context/AppContext';
+import api from '../api';
 import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
-  ResponsiveContainer, Tooltip as RechartsTooltip 
+  AlertTriangle, MapPin, Package, RotateCcw, User, Tag, 
+  ChevronDown, ChevronUp, Shield, Calendar, TrendingUp, BarChart2
+} from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 
-const RED = "#ef4444";
-const GREEN = "#22c55e";
-const BRAND = "#2563eb";
-const YELLOW = "#f59e0b";
+const RISK_CONFIG = {
+  CRITICAL: {
+    bg: 'rgba(220, 38, 38, 0.04)',
+    border: '#DC2626',
+    text: '#DC2626',
+    badge: '#DC2626',
+  },
+  HIGH: {
+    bg: 'rgba(217, 119, 6, 0.04)',
+    border: '#D97706',
+    text: '#D97706',
+    badge: '#D97706',
+  },
+  MEDIUM: {
+    bg: 'rgba(59, 130, 246, 0.04)',
+    border: '#3B82F6',
+    text: '#3B82F6',
+    badge: '#3B82F6',
+  },
+};
 
-const fmt = (v) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
-
-export const CriticalRiskCard = ({ title, desc, severity = 'high', icon = <ShieldAlert size={20} /> }) => {
-  const color = severity === 'high' ? RED : severity === 'medium' ? YELLOW : BRAND;
+function RiskScoreBar({ score }) {
+  const color = score >= 75 ? '#DC2626' : score >= 50 ? '#D97706' : '#3B82F6';
   return (
-    <div className="glass" style={{
-      padding: '16px', borderRadius: '12px', background: 'white',
-      border: `1px solid #e2e8f0`, borderLeft: `4px solid ${color}`, display: 'flex', gap: 12, alignItems: 'flex-start'
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+        <span>Risk Score</span>
+        <span style={{ fontWeight: 700, color }}>{score}%</span>
+      </div>
+      <div style={{ background: 'var(--bg-primary)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+        <div style={{
+          width: `${score}%`, height: '100%',
+          background: `linear-gradient(90deg, ${color}88, ${color})`,
+          borderRadius: 4,
+          transition: 'width 0.8s ease'
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function TransactionTable({ transactions }) {
+  if (!transactions || transactions.length === 0) return <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '12px 0' }}>No transaction records found.</div>;
+  return (
+    <div style={{ overflowX: 'auto', marginTop: 8 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+        <thead>
+          <tr style={{ background: 'var(--bg-primary)' }}>
+            {['Date', 'Order ID', 'Refund ID', 'SKU', 'HSN/SAC', 'Qty', 'Amount (₹)'].map(h => (
+              <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {transactions.map((t, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', background: i % 2 === 0 ? 'white' : 'var(--bg-primary)' }}>
+              <td style={{ padding: '8px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{t['Invoice Date']?.slice(0, 10) || '-'}</td>
+              <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.75rem' }}>{t['Order Id'] || '-'}</td>
+              <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.75rem' }}>{t['Refund Id'] || '-'}</td>
+              <td style={{ padding: '8px 12px', fontWeight: 500, color: 'var(--accent-secondary)' }}>{t['Sku'] || '-'}</td>
+              <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t['Hsn/sac'] || '-'}</td>
+              <td style={{ padding: '8px 12px', fontWeight: 700 }}>{Math.abs(parseFloat(t['Quantity']) || 1)}</td>
+              <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--danger)' }}>₹{Math.abs(parseFloat(t['Invoice Amount']) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SkuBreakdownTable({ skus }) {
+  if (!skus || skus.length === 0) return null;
+  return (
+    <div style={{ overflowX: 'auto', marginTop: 8 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+        <thead>
+          <tr style={{ background: 'var(--bg-primary)' }}>
+            {['SKU', 'HSN/SAC', 'Units Returned', 'Orders', 'Total Value (₹)'].map(h => (
+              <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {skus.map((s, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', background: i % 2 === 0 ? 'white' : 'var(--bg-primary)' }}>
+              <td style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--accent-secondary)' }}>{s.Sku || '-'}</td>
+              <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s['Hsn/sac'] || '-'}</td>
+              <td style={{ padding: '8px 12px', fontWeight: 700 }}>{s.quantity || Math.abs(parseFloat(s['Quantity']) || 1)}</td>
+              <td style={{ padding: '8px 12px' }}>{s.count ?? '-'}</td>
+              <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--danger)' }}>₹{Math.abs(parseFloat(s.amount) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function CriticalRiskCard({ item, rank }) {
+  const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState('skus');
+  const cfg = RISK_CONFIG[item.risk_label] || RISK_CONFIG['MEDIUM'];
+
+  const rankColors = ['#DC2626', '#D97706', '#3B82F6', '#8B5CF6', '#059669'];
+  const rankColor = rankColors[rank - 1] || '#64748B';
+
+  return (
+    <div style={{
+      background: cfg.bg,
+      border: `1.5px solid ${cfg.border}`,
+      borderRadius: 12,
+      overflow: 'hidden',
+      marginBottom: 20,
     }}>
-      <div style={{ color: color }}>{icon}</div>
-      <div>
-        <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>{title}</div>
-        <div style={{ fontSize: '11px', color: '#475569', lineHeight: 1.5 }}>{desc}</div>
+      {/* Header */}
+      <div style={{ padding: '20px 24px', borderBottom: `1px solid ${cfg.border}22` }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+
+          {/* Left: Rank + Identity */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+            {/* Rank Badge */}
+            <div style={{
+              width: 48, height: 48, borderRadius: 12,
+              background: rankColor,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <span style={{ color: 'white', fontWeight: 900, fontSize: '1.25rem' }}>#{rank}</span>
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+                <span style={{
+                  background: cfg.badge, color: 'white',
+                  padding: '2px 10px', borderRadius: 4,
+                  fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.08em'
+                }}>{item.risk_label} RISK</span>
+                <User size={16} color="var(--text-secondary)" />
+                <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{item.customer_id}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', fontSize: '0.85rem', flexWrap: 'wrap', background: 'rgba(239, 68, 68, 0.05)', padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                <MapPin size={16} color="var(--danger)" />
+                <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                   {item.city}, {item.state}
+                </span>
+                <span style={{ background: '#fef2f2', padding: '2px 8px', borderRadius: 4, border: '1px solid #fca5a5', color: '#ef4444', fontWeight: 800, letterSpacing: '0.1em', marginLeft: 6 }}>
+                   ZIP CODES: {item.postal_code || 'N/A'}
+                </span>
+                {item.gstin && item.gstin !== 'N/A' && (
+                  <span style={{ marginLeft: 8, background: 'var(--bg-primary)', padding: '2px 8px', borderRadius: 4, fontFamily: 'monospace', fontSize: '0.75rem', border: '1px solid var(--border-color)' }}>
+                    GSTIN: {item.gstin}
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 4 }}>
+                <Calendar size={12} />
+                <span>First refund: {item.first_refund?.slice(0, 10)}</span>
+                <span>→</span>
+                <span>Last refund: {item.last_refund?.slice(0, 10)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Key Metrics */}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div style={{ textAlign: 'center', background: 'white', border: '1px solid var(--border-color)', borderRadius: 8, padding: '10px 16px', minWidth: 80 }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: cfg.text }}>{item.refund_quantity}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Units</div>
+            </div>
+            <div style={{ textAlign: 'center', background: 'white', border: '1px solid var(--border-color)', borderRadius: 8, padding: '10px 16px', minWidth: 80 }}>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: cfg.text }}>{item.refund_count}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Orders</div>
+            </div>
+            <div style={{ textAlign: 'center', background: 'white', border: '1px solid var(--border-color)', borderRadius: 8, padding: '10px 16px', minWidth: 100 }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--danger)' }}>₹{Number(item.total_refund_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Total Value</div>
+            </div>
+          </div>
+        </div>
+
+        <RiskScoreBar score={item.risk_score} />
       </div>
+
+      {/* SKU Tags Row */}
+      <div style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.5)', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', borderBottom: `1px solid ${cfg.border}22` }}>
+        <Tag size={13} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginRight: 4 }}>Refunded SKUs:</span>
+        {(item.skus || []).map((sku, i) => (
+          <span key={i} style={{
+            background: 'white', color: 'var(--accent-secondary)',
+            padding: '3px 10px', borderRadius: 4, fontSize: '0.75rem',
+            border: '1px solid rgba(59,130,246,0.25)', fontWeight: 600
+          }}>{sku}</span>
+        ))}
+        {(!item.skus || item.skus.length === 0) && <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No SKU data</span>}
+      </div>
+
+      {/* Expandable Detail Section */}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        style={{
+          width: '100%', padding: '10px 24px',
+          background: 'rgba(255,255,255,0.6)',
+          border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600
+        }}
+      >
+        <span>{expanded ? 'Hide' : 'View'} Full Refund Details</span>
+        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+      </button>
+
+      {expanded && (
+        <div style={{ padding: '0 24px 24px' }}>
+          {/* Tab toggles */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '2px solid var(--border-color)', marginTop: 12 }}>
+            {(['skus', 'transactions']).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '8px 20px',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontWeight: activeTab === tab ? 700 : 500,
+                  color: activeTab === tab ? cfg.text : 'var(--text-secondary)',
+                  borderBottom: `2px solid ${activeTab === tab ? cfg.text : 'transparent'}`,
+                  marginBottom: -2,
+                  fontSize: '0.875rem',
+                  transition: 'all 0.15s',
+                  textTransform: 'capitalize'
+                }}
+              >
+                {tab === 'skus' ? '📦 SKU Breakdown' : '🧾 Transaction List'}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === 'skus' && <SkuBreakdownTable skus={item.sku_breakdown} />}
+          {activeTab === 'transactions' && <TransactionTable transactions={item.transactions} />}
+        </div>
+      )}
     </div>
   );
-};
+}
 
-const RiskMetric = ({ label, value, icon, color = BRAND }) => (
-  <div className="glass" style={{ padding: '20px', borderRadius: '16px', background: 'white', border: '1px solid #e2e8f0', flex: 1 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-      <div style={{ padding: '8px', background: `${color}10`, borderRadius: '10px', color: color }}>{icon}</div>
-      <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>{label}</div>
-    </div>
-    <div style={{ fontSize: '20px', fontWeight: 900, color: '#0f172a' }}>{value}</div>
-  </div>
-);
-
-const FraudAnalysis = ({ fraudData }) => {
-  const score = fraudData?.score || 12;
-  const status = score < 20 ? 'Secure' : score < 50 ? 'Warning' : 'Critical';
-  const color = score < 20 ? GREEN : score < 50 ? YELLOW : RED;
-
-  // Derive top regions/skus from topRisk
-  const topRegions = (fraudData?.topRisk || []).slice(0, 3);
-  const topSkus = (fraudData?.topRisk || []).reduce((acc, curr) => {
-    (curr.skus || []).forEach(sku => {
-      acc[sku] = (acc[sku] || 0) + 1;
+function FraudTrendChart({ data }) {
+  const trendData = useMemo(() => {
+    const dates = {};
+    data.forEach(customer => {
+      (customer.transactions || []).forEach(t => {
+        const d = t['Invoice Date']?.slice(0, 7) || 'Unknown'; // Monthly grouping
+        if (!dates[d]) dates[d] = { date: d, amount: 0, count: 0 };
+        dates[d].amount += Math.abs(t['Invoice Amount'] || 0);
+        dates[d].count += 1;
+      });
     });
-    return acc;
-  }, {});
-  const sortedSkus = Object.entries(topSkus).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    return Object.values(dates).sort((a, b) => a.date.localeCompare(b.date));
+  }, [data]);
 
-  // Radar Data for behavioral patterns
-  const radarData = [
-     { subject: 'Frequency', A: Math.min(100, (fraudData?.totalRefundTransactions || 0) * 10), fullMark: 100 },
-     { subject: 'Quantity', A: Math.min(100, (fraudData?.totalRefundQty || 0) * 5), fullMark: 100 },
-     { subject: 'Variety', A: Math.min(100, (sortedSkus.length || 0) * 20), fullMark: 100 },
-     { subject: 'Velocity', A: score, fullMark: 100 },
-     { subject: 'Value', A: Math.min(100, ((fraudData?.moneyAtRisk || 0) / 50000) * 100), fullMark: 100 },
-  ];
+  if (trendData.length === 0) return null;
 
   return (
-    <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      
-      {/* FINANCIAL EXPOSURE HEADER */}
-      <div style={{ display: 'flex', gap: 20 }}>
-        <RiskMetric label="Money at Risk" value={fmt(fraudData?.moneyAtRisk || 0)} icon={<DollarSign size={18} />} color={RED} />
-        <RiskMetric label="Flagged Refunds" value={fraudData?.totalRefundTransactions || 0} icon={<History size={18} />} color={YELLOW} />
-        <RiskMetric label="Return Volume" value={Math.floor(fraudData?.totalRefundQty || 0)} icon={<Package size={18} />} color={BRAND} />
-        <RiskMetric label="Threat Vectors" value={fraudData?.totalAlerts || 0} icon={<ShieldAlert size={18} />} color={RED} />
+    <div className="glass" style={{ padding: 24, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        <TrendingUp size={20} color="var(--danger)" />
+        <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Refund Value Trend</h3>
       </div>
+      <div style={{ height: 260, width: '100%' }}>
+        <ResponsiveContainer>
+          <AreaChart data={trendData}>
+            <defs>
+              <linearGradient id="fraudGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#DC2626" stopOpacity={0.1}/>
+                <stop offset="95%" stopColor="#DC2626" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${v/1000}k`} />
+            <Tooltip 
+              contentStyle={{ background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+              formatter={(v) => [`₹${v.toLocaleString()}`, 'Refund Value']}
+            />
+            <Area type="monotone" dataKey="amount" stroke="#DC2626" strokeWidth={3} fillOpacity={1} fill="url(#fraudGradient)" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 32 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* RISK RADAR SECTION */}
-          <div className="glass" style={{ padding: '24px', borderRadius: '24px', background: 'white', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: 20 }}>Risk Profile Radar</div>
-            <div style={{ height: 280, width: '100%' }}>
-               <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                     <PolarGrid stroke="#e2e8f0" />
-                     <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} />
-                     <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                     <Radar name="Threat Level" dataKey="A" stroke={RED} fill={RED} fillOpacity={0.15} />
-                     <RechartsTooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                  </RadarChart>
-               </ResponsiveContainer>
-            </div>
-            <div style={{ textAlign: 'center', marginTop: 12 }}>
-               <div style={{ fontSize: '11px', fontWeight: 800, color: RED }}>● Threat Level Profile</div>
-            </div>
-          </div>
+function HighQuantityRefunders({ data }) {
+  const topRefunders = useMemo(() => {
+    const records = [];
+    data.forEach(c => {
+      const hsnGroups = {};
+      (c.sku_breakdown || []).forEach(s => {
+        const hsn = s['Hsn/sac'] || 'Unclassified';
+        if (!hsnGroups[hsn]) hsnGroups[hsn] = 0;
+        hsnGroups[hsn] += (s.quantity || 1);
+      });
+      Object.entries(hsnGroups).forEach(([hsn, qty]) => {
+        records.push({
+          hsn,
+          quantity: qty,
+          city: c.city,
+          state: c.state,
+          postal_code: c.postal_code,
+          customer_id: c.customer_id
+        });
+      });
+    });
+    return records.sort((a, b) => b.quantity - a.quantity).slice(0, 5);
+  }, [data]);
 
-          <div className="glass" style={{ padding: '32px', borderRadius: '24px', textAlign: 'center', background: 'white', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 16 }}>Health Scan Result</div>
-            <div style={{ position: 'relative', width: '160px', height: '160px', margin: '0 auto 24px' }}>
-              <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
-                <circle cx="50" cy="50" r="45" fill="none" stroke="#f1f5f9" strokeWidth="8" />
-                <circle cx="50" cy="50" r="45" fill="none" stroke={color} strokeWidth="8" strokeDasharray="282.7" strokeDashoffset={282.7 * (1 - score / 100)} strokeLinecap="round" />
-              </svg>
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-                <div style={{ fontSize: '32px', fontWeight: 900, color: '#0f172a' }}>{score}%</div>
-                <div style={{ fontSize: '10px', fontWeight: 800, color: color, textTransform: 'uppercase' }}>{status}</div>
-              </div>
-            </div>
+  return (
+    <div className="glass" style={{ padding: 24, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        <Package size={20} color="var(--warning)" />
+        <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>High Quantity Refunders (By Tax Class)</h3>
+      </div>
+      <div style={{ height: 260, width: '100%', overflowY: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>HSN/SAC</th>
+              <th style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>Region & Pincode</th>
+              <th style={{ textAlign: 'right', padding: '8px 12px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>Units</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topRefunders.map((c, idx) => (
+              <tr key={idx} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                <td style={{ padding: '12px 12px', fontWeight: 700, color: 'var(--accent-secondary)', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                  {c.hsn}
+                </td>
+                <td style={{ padding: '12px 12px' }}>
+                   <div style={{ fontWeight: 600 }}>{c.city}, {c.state}</div>
+                   <div style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 800, marginTop: 2 }}>ZIP: {c.postal_code || 'N/A'}</div>
+                </td>
+                <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 800, color: 'var(--danger)', fontSize: '1.2rem' }}>{c.quantity}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CustomerTable({ customers }) {
+  if (!customers || customers.length === 0) return <div style={{ color: 'var(--text-secondary)', padding: '12px 0' }}>No customers found.</div>;
+  return (
+    <div style={{ overflowX: 'auto', marginTop: 8 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+        <thead>
+          <tr style={{ background: 'var(--bg-primary)' }}>
+            {['Rank', 'Customer / Region', 'SKUs (Num)', 'Orders', 'Units', 'Amount (₹)', 'Risk'].map(h => (
+              <th key={h} style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {customers.map((c, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+              <td style={{ padding: '12px 16px', fontWeight: 800 }}>#{c.rank || i + 1}</td>
+              <td style={{ padding: '12px 16px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.customer_id}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>{c.city}, {c.state}</div>
+              </td>
+              <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{(c.skus || []).length}</td>
+              <td style={{ padding: '12px 16px', fontWeight: 600 }}>{c.refund_count}</td>
+              <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--warning)' }}>{c.refund_quantity}</td>
+              <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--danger)' }}>₹{Math.floor(c.total_refund_amount).toLocaleString('en-IN')}</td>
+              <td style={{ padding: '12px 16px' }}>
+                <span style={{ padding: '4px 8px', borderRadius: 4, fontSize: '0.7rem', fontWeight: 800, background: c.risk_label === 'CRITICAL' ? '#fef2f2' : c.risk_label === 'HIGH' ? '#fffbeb' : '#eff6ff', color: c.risk_label === 'CRITICAL' ? '#dc2626' : c.risk_label === 'HIGH' ? '#d97706' : '#3b82f6' }}>
+                  {c.risk_label}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FullDataModal({ type, fullData, onClose }) {
+  if (!fullData) return null;
+  const isCust = type === 'customers';
+  const title = isCust ? 'Risk Entity Summary' : 'Comprehensive Refund Ledger';
+  const subtitle = isCust ? 'Full list of aggregated entity risks' : 'All raw individual return transactions';
+  const list = isCust ? (fullData.allRiskSummaries || fullData.topRisk || []) : (fullData.allReturnTransactions || []);
+
+  // Sort transactions by date descending mostly
+  const sortedList = [...list];
+  if (!isCust) {
+    sortedList.sort((a, b) => new Date(b['Invoice Date'] || 0) - new Date(a['Invoice Date'] || 0));
+  }
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backdropFilter: 'blur(4px)' }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 16, width: '90%', maxWidth: 1000, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>{title}</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{subtitle} ({list.length} records)</p>
           </div>
+          <button onClick={onClose} style={{ padding: '8px 16px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Close</button>
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {/* THREAT FEED */}
-          <div className="glass" style={{ padding: '32px', borderRadius: '24px', background: 'white', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 900 }}>Threat Intelligence Feed</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                 <div style={{ fontSize: '11px', fontWeight: 800, color: GREEN }}>● LIVE MONITORING</div>
-                 <ShieldCheck size={20} color={GREEN} />
-              </div>
-            </div>
-            <div style={{ border: '1px solid #f1f5f9', borderRadius: '16px', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ background: '#f8fafc' }}>
-                  <tr>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 800, color: '#64748b' }}>Vector ID</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 800, color: '#64748b' }}>Detection Engine</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 800, color: '#64748b' }}>Confidence</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 800, color: '#64748b' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {fraudData?.topRisk?.length > 0 ? (
-                    fraudData.topRisk.map((row, i) => {
-                      const engines = ["Postcode Centroid", "Velocity Spike", "Buyer Frequency", "Identity Mismatch", "Return Anomaly"];
-                      const engine = engines[i % engines.length];
-                      return (
-                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: 700 }}>
-                            <span style={{ color: '#94a3b8', marginRight: 8, fontSize: 10 }}>FT-{800 + i}</span>
-                            {row.customer_id?.slice(0, 15)}...
-                          </td>
-                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#475569' }}>
-                            {engine}
-                          </td>
-                          <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: 800, color: BRAND }}>
-                            {row.risk_score}%
-                          </td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <span style={{ 
-                              fontSize: '10px', fontWeight: 900, background: row.risk_score >= 80 ? `${RED}10` : '#f1f5f9',
-                              color: row.risk_score >= 80 ? RED : '#64748b', padding: '2px 8px', borderRadius: '4px' 
-                            }}>{row.risk_label}</span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
-                        No critical risk vectors detected in this dataset.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-             {/* TERRITORIAL RISK BREAKDOWN */}
-            <div className="glass" style={{ padding: '24px', borderRadius: '20px', background: 'white', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <MapPin size={16} color={RED} />
-                  <h3 style={{ fontSize: '14px', fontWeight: 900, margin: 0 }}>Regional Hotspots</h3>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {topRegions.map((reg, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f8fafc', borderRadius: '8px' }}>
-                        <div>
-                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>{reg.state}</div>
-                            <div style={{ fontSize: '10px', color: '#64748b' }}>{reg.city}</div>
-                        </div>
-                        <div style={{ fontSize: '12px', fontWeight: 900, color: reg.risk_score >= 80 ? RED : BRAND }}>{reg.risk_score}%</div>
-                      </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* SKU VULNERABILITY ANALYSIS */}
-              <div className="glass" style={{ padding: '24px', borderRadius: '20px', background: 'white', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <Package size={16} color={BRAND} />
-                  <h3 style={{ fontSize: '14px', fontWeight: 900, margin: 0 }}>Vulnerable SKUs</h3>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {sortedSkus.map(([sku, count], i) => (
-                      <div key={i} style={{ padding: '10px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <div style={{ fontSize: '9px', fontWeight: 800, color: '#64748b', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sku}</div>
-                        <div style={{ fontSize: '14px', fontWeight: 900, color: '#0f172a' }}>{count} <span style={{ fontSize: 9, color: RED }}>Refunds</span></div>
-                      </div>
-                  ))}
-                </div>
-              </div>
-          </div>
+        <div style={{ padding: '24px 32px', overflowY: 'auto', flex: 1 }}>
+          {isCust ? <CustomerTable customers={sortedList} /> : <TransactionTable transactions={sortedList} />}
         </div>
       </div>
     </div>
   );
-};
+}
 
-export default FraudAnalysis;
+export default function FraudAnalysis({ fraudData }) {
+  const { dataset } = useAppContext();
+  const [data, setData] = useState([]);
+  const [fullData, setFullData] = useState(null);
+  const [activeModal, setActiveModal] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        if (fraudData) {
+          const res = fraudData;
+          setFullData(res);
+          if (res && res.topRisk) {
+            setData(res.topRisk);
+          } else if (Array.isArray(res)) {
+            setData(res);
+          } else {
+            setData([]);
+          }
+        } else {
+          setFullData(null);
+          setData([]);
+        }
+      } catch (error) {
+        console.error("Failed to load fraud data", error);
+        setData([]);
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, [fraudData, startDate, endDate]);
+
+  const totalRefundQty = data.reduce((s, d) => s + (d.refund_quantity || 0), 0);
+  const totalRefundAmt = data.reduce((s, d) => s + (d.total_refund_amount || 0), 0);
+  const totalOrders = data.reduce((s, d) => s + (d.refund_count || 0), 0);
+
+  return (
+    <div className="page-container">
+      {/* Header Row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <Shield size={22} color="var(--danger)" />
+            <h1 className="page-title" style={{ margin: 0 }}>Fraud & Refund Risk Analysis</h1>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+            Top 5 highest-risk customers ranked by refund quantity and frequency
+          </p>
+        </div>
+
+        {/* Date Filters */}
+        <div className="filters-bar glass" style={{ display: 'flex', gap: 12, padding: '12px 16px', alignItems: 'center' }}>
+          <input type="date" className="filter-input" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>to</span>
+          <input type="date" className="filter-input" value={endDate} onChange={e => setEndDate(e.target.value)} />
+          {(startDate || endDate) && (
+            <button onClick={() => { setStartDate(''); setEndDate(''); }}
+              style={{ background: 'none', border: 'none', color: 'var(--accent-secondary)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Summary Strip */}
+      {!loading && data.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
+          {[
+            { id: 'customers', label: 'Critical Customers Found', value: data.length, icon: <AlertTriangle size={18} color="var(--danger)" />, color: 'var(--danger)' },
+            { id: 'transactions', label: 'Total Units Returned', value: totalRefundQty.toLocaleString(), icon: <Package size={18} color="var(--warning)" />, color: 'var(--warning)' },
+            { id: 'transactions', label: 'Total Refund Value', value: `₹${totalRefundAmt.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: <RotateCcw size={18} color="var(--danger)" />, color: 'var(--danger)' },
+            { id: 'transactions', label: 'Refund Transactions', value: totalOrders.toLocaleString(), icon: <User size={18} color="var(--accent-secondary)" />, color: 'var(--accent-secondary)' },
+          ].map((m, i) => (
+            <div key={i} className="glass" onClick={() => setActiveModal(m.id)}
+                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)'; }}
+                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 20px 40px -20px rgba(0,0,0,0.05)'; }}
+                 style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', transition: 'all 0.2s' }}>
+              <div style={{ background: 'var(--bg-primary)', padding: 8, borderRadius: 8, flexShrink: 0 }}>{m.icon}</div>
+              <div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: m.color }}>{m.value}</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{m.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeModal && <FullDataModal type={activeModal} fullData={fullData} onClose={() => setActiveModal(null)} />}
+
+      {/* Info Banner */}
+      <div className="glass" style={{ padding: '14px 20px', borderLeft: '4px solid var(--danger)', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <AlertTriangle size={18} color="var(--danger)" style={{ flexShrink: 0, marginTop: 1 }} />
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}>
+          {dataset?.type === 'b2c'
+            ? "B2C transactions are anonymous. Customers are identified by their shipping location (City + Postal Code). Risk score is calculated from return volume (60%) and return frequency (40%)."
+            : "B2B buyers are identified by their registered business name. Risk score is calculated from return volume (60%) and return frequency (40%). Click any card to view their full refund ledger."}
+        </p>
+      </div>
+
+      {/* Charts Section */}
+      {!loading && data.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+          <FraudTrendChart data={data} />
+          <HighQuantityRefunders data={data} />
+        </div>
+      )}
+
+      {/* Content */}
+      {loading ? (
+        <div className="loader-container"><div className="loader" /></div>
+      ) : data.length === 0 ? (
+        <div className="glass" style={{ padding: 48, textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <Shield size={40} style={{ opacity: 0.2, display: 'block', margin: '0 auto 12px' }} />
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>No refund activity detected</div>
+          <div style={{ fontSize: '0.875rem' }}>No refund transactions found for the selected period.</div>
+        </div>
+      ) : (
+        <div>
+          {(() => {
+            const worstOffender = data.reduce((max, obj) => obj.refund_quantity > max.refund_quantity ? obj : max, data[0]);
+            const remaining = data.filter(d => d.customer_id !== worstOffender.customer_id);
+            return (
+              <>
+                {/* 🚨 Worst Offender Priority Card */}
+                <div style={{ marginBottom: 40, background: 'rgba(239, 68, 68, 0.02)', padding: '24px 24px', borderRadius: 16, border: '1px dashed rgba(239, 68, 68, 0.3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, paddingBottom: 10 }}>
+                    <AlertTriangle size={26} color="#ef4444" />
+                    <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      MAXIMUM QUANTITY REFUNDER DETECTED
+                    </h2>
+                  </div>
+                  <CriticalRiskCard item={worstOffender} rank={1} />
+                </div>
+                
+                {/* Normal Threat List */}
+                {remaining.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, borderBottom: '2px solid var(--border-color)', paddingBottom: 10 }}>
+                      <User size={20} color="var(--text-secondary)" />
+                      <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        General Threat List
+                      </h2>
+                    </div>
+                    {remaining.map((item, idx) => (
+                      <CriticalRiskCard key={item.customer_id} item={item} rank={idx + 2} />
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}

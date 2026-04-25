@@ -11,8 +11,7 @@ import {
   TrendingUp, TrendingDown, Clock, Activity, Download, Check
 } from 'lucide-react';
 
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import * as XLSX from 'xlsx';
 
 import LoginSection from "./components/LoginSection";
 import LandingPage from "./components/LandingPage";
@@ -243,46 +242,138 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
     grid6: { display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 16, marginBottom: 24 }
   };
 
-  const generatePDF = async () => {
+  const generateExcel = () => {
     setIsExporting(true);
-    
-    // Give React time to physically render all charts un-collapsed
-    setTimeout(async () => {
-      try {
-        const target = document.getElementById("dashboard-export-area");
-        if(!target) return;
+    try {
+      const b2bData = [];
+      const b2cData = [];
+
+      // Use filtered data if available, otherwise rawData
+      const dataToProcess = filtered || rawData || [];
+
+      // Sort by HSN/SAC
+      const sortedData = [...dataToProcess].sort((a, b) => {
+        const hsnA = String(a["Hsn/sac"] || a["HSN"] || "").trim();
+        const hsnB = String(b["Hsn/sac"] || b["HSN"] || "").trim();
+        return hsnA.localeCompare(hsnB);
+      });
+
+      sortedData.forEach(r => {
+        const rowKeys = Object.keys(r);
+        const gstinKey = rowKeys.find(k => k.toLowerCase().includes("gstin"));
+        const buyerNameKey = rowKeys.find(k => k.toLowerCase().includes("buyer") || k.toLowerCase().includes("customer name"));
         
-        const canvas = await html2canvas(target, { scale: 1.5, backgroundColor: "#f8fafc", useCORS: true, logging: false });
-        const imgData = canvas.toDataURL("image/jpeg", 0.82);
+        const gstinVal = gstinKey ? r[gstinKey] : "";
+        const buyerVal = buyerNameKey ? r[buyerNameKey] : "";
+        const invoiceType = r["Invoice Type"] || r["Transaction Type"] || "";
         
-        // Standard A4 page with aspect-ratio fitted content
-        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgRatio = canvas.height / canvas.width;
-        const imgH = pageWidth * imgRatio;
+        const rawGstin = String(gstinVal).trim().toUpperCase();
+        const validGstin = rawGstin && rawGstin !== "N/A" && rawGstin !== "-" && rawGstin !== "URD" && rawGstin !== "UNREGISTERED";
         
-        // If content is taller than one A4 page, paginate it
-        if (imgH <= pageHeight) {
-          pdf.addImage(imgData, "JPEG", 0, 0, pageWidth, imgH);
+        const isB2B = Boolean(
+          validGstin || 
+          (String(buyerVal).toUpperCase().includes("B2B")) || 
+          (String(invoiceType).toUpperCase().includes("B2B"))
+        );
+
+        const qty = Number(r["Quantity"] || r["Qty"] || r["Shipped Quantity"]) || 0;
+        
+        if (isB2B) {
+          b2bData.push({
+            "HSN/SAC": r["Hsn/sac"] || r["HSN"] || "-",
+            "SKU": r["Sku"] || r["SKU"] || "-",
+            "Item Description": r["Item Description"] || "-",
+            "Invoice Number": r["Invoice Number"] || "-",
+            "Invoice Date": r["Invoice Date"] || "-",
+            "Buyer Name": buyerVal || "-",
+            "GSTIN": gstinVal || "-",
+            "State": r["Ship To State"] || r["State"] || "-",
+            "Quantity": qty,
+            "Taxable Value / Principal": Number(r["Principal Amount"]) || 0,
+            "CGST": Number(r["Cgst Tax"] || r["CGST"]) || 0,
+            "SGST": Number(r["Sgst Tax"] || r["SGST"]) || 0,
+            "IGST": Number(r["Igst Tax"] || r["IGST"]) || 0,
+            "Total Tax": (Number(r["Cgst Tax"] || r["CGST"]) || 0) + (Number(r["Sgst Tax"] || r["SGST"]) || 0) + (Number(r["Igst Tax"] || r["IGST"]) || 0),
+            "Total Invoice Amount": Number(r["Invoice Amount"]) || 0
+          });
         } else {
-          let yOffset = 0;
-          let remaining = imgH;
-          while (remaining > 0) {
-            pdf.addImage(imgData, "JPEG", 0, -yOffset, pageWidth, imgH);
-            remaining -= pageHeight;
-            yOffset += pageHeight;
-            if (remaining > 0) pdf.addPage();
-          }
+          b2cData.push({
+            "HSN/SAC": r["Hsn/sac"] || r["HSN"] || "-",
+            "SKU": r["Sku"] || r["SKU"] || "-",
+            "Item Description": r["Item Description"] || "-",
+            "Invoice Number": r["Invoice Number"] || "-",
+            "Invoice Date": r["Invoice Date"] || "-",
+            "Item Status": r["Item Status"] || r["Order Status"] || "-",
+            "Fulfillment Channel": r["Fulfillment Channel"] || r["Channel"] || "-",
+            "City": r["Ship To City"] || r["City"] || "-",
+            "State": r["Ship To State"] || r["State"] || "-",
+            "Zip Code": r["Ship To Zip"] || r["Postal Code"] || r["Pincode"] || "-",
+            "Quantity": qty,
+            "Unit Price": Number(r["Item Price"]) || (qty > 0 ? (Number(r["Principal Amount"]) / qty).toFixed(2) : 0),
+            "Principal Amount": Number(r["Principal Amount"]) || 0,
+            "Shipping Charge": Number(r["Shipping Charge"] || r["Shipping Rate"]) || 0,
+            "Discount": Number(r["Item Promo Discount"]) || 0,
+            "Net Revenue": Number(r["Invoice Amount"]) || 0
+          });
         }
-        pdf.save(`SellerIQ_Report_${activePlan.toUpperCase()}.pdf`);
-      } catch (err) {
-        console.error("PDF Export failed", err);
-        alert("Failed to render PDF. Please try again.");
-      } finally {
-        setIsExporting(false);
+      });
+
+      if (b2bData.length > 0) {
+        b2bData.push({}); // Empty row
+        b2bData.push({
+          "HSN/SAC": "GRAND TOTAL",
+          "Quantity": b2bData.reduce((sum, r) => sum + (Number(r["Quantity"]) || 0), 0),
+          "Taxable Value / Principal": b2bData.reduce((sum, r) => sum + (Number(r["Taxable Value / Principal"]) || 0), 0),
+          "CGST": b2bData.reduce((sum, r) => sum + (Number(r["CGST"]) || 0), 0),
+          "SGST": b2bData.reduce((sum, r) => sum + (Number(r["SGST"]) || 0), 0),
+          "IGST": b2bData.reduce((sum, r) => sum + (Number(r["IGST"]) || 0), 0),
+          "Total Tax": b2bData.reduce((sum, r) => sum + (Number(r["Total Tax"]) || 0), 0),
+          "Total Invoice Amount": b2bData.reduce((sum, r) => sum + (Number(r["Total Invoice Amount"]) || 0), 0)
+        });
       }
-    }, 5000); // Wait 5 seconds for dynamically un-collapsed network components to finish fetching
+
+      if (b2cData.length > 0) {
+        b2cData.push({}); // Empty row
+        b2cData.push({
+          "HSN/SAC": "GRAND TOTAL",
+          "Item Status": "",
+          "Fulfillment Channel": "",
+          "City": "",
+          "State": "",
+          "Zip Code": "",
+          "Quantity": b2cData.reduce((sum, r) => sum + (Number(r["Quantity"]) || 0), 0),
+          "Unit Price": "",
+          "Principal Amount": b2cData.reduce((sum, r) => sum + (Number(r["Principal Amount"]) || 0), 0),
+          "Shipping Charge": b2cData.reduce((sum, r) => sum + (Number(r["Shipping Charge"]) || 0), 0),
+          "Discount": b2cData.reduce((sum, r) => sum + (Number(r["Discount"]) || 0), 0),
+          "Net Revenue": b2cData.reduce((sum, r) => sum + (Number(r["Net Revenue"]) || 0), 0)
+        });
+      }
+
+      const wb = XLSX.utils.book_new();
+      
+      if (b2bData.length > 0) {
+        const b2bSheet = XLSX.utils.json_to_sheet(b2bData);
+        XLSX.utils.book_append_sheet(wb, b2bSheet, "B2B Sales");
+      }
+      
+      if (b2cData.length > 0) {
+        const b2cSheet = XLSX.utils.json_to_sheet(b2cData);
+        XLSX.utils.book_append_sheet(wb, b2cSheet, "B2C Sales");
+      }
+
+      if (b2bData.length === 0 && b2cData.length === 0) {
+        const emptySheet = XLSX.utils.json_to_sheet([{ Message: "No Data Found in current selection" }]);
+        XLSX.utils.book_append_sheet(wb, emptySheet, "Sales Data");
+      }
+
+      XLSX.writeFile(wb, `SellerIQ_Report_${activePlan.toUpperCase()}_Excel.xlsx`);
+    } catch (err) {
+      console.error("Excel Export failed", err);
+      alert("Failed to render Excel. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -344,28 +435,18 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
           <div style={{ textAlign: "right", marginRight: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: GREEN, marginBottom: 12 }}>● STATUS: SECURE</div>
             <div style={{ display: "flex", gap: 12 }}>
+
               <button 
-                 onClick={() => alert("GST Data Exporting...")} 
-                 style={{ 
-                   padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e2e8f0", 
-                   background: "transparent", color: "#334155", 
-                   fontSize: 13, fontWeight: 700, cursor: "pointer",
-                   display: "flex", alignItems: "center", gap: 8 
-                 }}
-              >
-                 <Download size={16} /> GST Export
-              </button>
-              <button 
-                 onClick={generatePDF} 
+                 onClick={generateExcel} 
                  style={{ 
                    padding: "8px 16px", borderRadius: 8, border: "none", 
                    background: BRAND, color: "#fff", 
                    fontSize: 13, fontWeight: 700, cursor: "pointer",
                    display: "flex", alignItems: "center", gap: 8 
                  }}
-                 title="Download PDF Report"
+                 title="Download Excel Report"
               >
-                 <Download size={16} /> PDF Export
+                 <Download size={16} /> Excel Export
               </button>
             </div>
           </div>
