@@ -11,7 +11,7 @@ import {
   TrendingUp, TrendingDown, Clock, Activity, Download, Check
 } from 'lucide-react';
 
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 
 import LoginSection from "./components/LoginSection";
 import LandingPage from "./components/LandingPage";
@@ -31,9 +31,9 @@ import DemoUpload from "./components/DemoUpload";
 import RegionAnalysis from "./components/RegionAnalysis";
 
 const SaaS_PLANS = [
-  { id: 'starter', name: 'Starter', price: 2999, features: ['3 files allowed / month', 'Basic Analytics', 'Standard Reports', 'Email Support'] },
-  { id: 'pro', name: 'Pro', price: 5999, recommended: true, features: ['10 files allowed / month', 'Advanced Fraud AI', 'Revenue Forecasting', '24/7 Priority Support'] },
-  { id: 'enterprise', name: 'Enterprise', price: 14999, features: ['30 files allowed / month', 'SaaS Integration Hub', 'Custom Modeling', '24/7 Call Support'] }
+  { id: 'starter', name: 'Starter', price: 300, features: ['3 files per month', 'Up to 5,000 orders', 'Email Support', 'Basic Analytics'] },
+  { id: 'pro', name: 'Pro', price: 1500, recommended: true, features: ['10 files per month', 'Up to 25,000 orders', '24/7 Priority Support', 'AI Fraud Detection', 'Predictive Forecasting'] },
+  { id: 'enterprise', name: 'Enterprise', price: 4999, features: ['30 files per month', 'Unlimited orders', '24/7 Call Support', 'Full API Access', 'Custom Integrations'] }
 ];
 
 const SaaSMembership = ({ styles, activePlan }) => {
@@ -122,7 +122,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
 
   // Plan-based tab access rules
   const planOrder = { starter: 0, pro: 1, enterprise: 2 };
-  const canAccess = (minPlan) => (planOrder[activePlan] || 0) >= (planOrder[minPlan] || 0);
+  const canAccess = (minPlan) => (planOrder[String(activePlan).toLowerCase()] || 0) >= (planOrder[minPlan] || 0);
 
   const ALL_TABS = ["overview", "sku", "regions", "tax", "fraud", "forecast", "saas", "about", "support"];
   const LOCKED_TABS = [
@@ -160,6 +160,38 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+
+  const [connectivity, setConnectivity] = useState([
+    { name: "Amazon MTR", id: "amz-01", status: "Live", latency: 42, icon: "📦" },
+    { name: "Shopify Store", id: "shp-04", status: "Live", latency: 110, icon: "🛍️" },
+    { name: "Walmart MP", id: "wmt-02", status: "Standby", latency: 0, icon: "🛒" },
+    { name: "Custom ERP", id: "erp-09", status: "Syncing", latency: 890, icon: "🏢" },
+  ]);
+
+  useEffect(() => {
+    if (activeTab === "saas") {
+      const interval = setInterval(() => {
+        setConnectivity(prev => prev.map(p => {
+          if (p.status === "Live" || p.status === "Syncing" || p.status === "Connecting") {
+            let newLatency = p.latency + (Math.random() * 0.4 - 0.2) * p.latency;
+            if (Math.random() > 0.8) newLatency += 100;
+            if (p.status === "Syncing" && Math.random() > 0.8) {
+              return { ...p, status: "Live", latency: 120 };
+            }
+            if (p.status === "Connecting" && Math.random() > 0.7) {
+              return { ...p, status: "Live", latency: 85 };
+            }
+            return { ...p, latency: Math.max(12, Math.floor(newLatency)) };
+          }
+          if (p.name === "Walmart MP" && p.status === "Standby" && Math.random() > 0.7) {
+            return { ...p, status: "Connecting", latency: 450 };
+          }
+          return p;
+        }));
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   // Update context when Dashboard loads with new data
   useEffect(() => {
@@ -246,128 +278,192 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
     setIsExporting(true);
     try {
       const b2bData = [];
-      const b2cData = [];
+      const cdnrData = [];
+      const cdnurData = [];
+      const b2clData = [];
+      
+      const b2csMap = new Map(); // Key: State|Rate
+      const hsnMap = new Map(); // Key: HSN|Description
 
-      // Use filtered data if available, otherwise rawData
       const dataToProcess = filtered || rawData || [];
 
-      // Sort by HSN/SAC
-      const sortedData = [...dataToProcess].sort((a, b) => {
-        const hsnA = String(a["Hsn/sac"] || a["HSN"] || "").trim();
-        const hsnB = String(b["Hsn/sac"] || b["HSN"] || "").trim();
-        return hsnA.localeCompare(hsnB);
-      });
-
-      sortedData.forEach(r => {
+      dataToProcess.forEach(r => {
         const rowKeys = Object.keys(r);
         const gstinKey = rowKeys.find(k => k.toLowerCase().includes("gstin"));
         const buyerNameKey = rowKeys.find(k => k.toLowerCase().includes("buyer") || k.toLowerCase().includes("customer name"));
         
-        const gstinVal = gstinKey ? r[gstinKey] : "";
+        const gstinVal = gstinKey ? (r[gstinKey] || "") : "";
         const buyerVal = buyerNameKey ? r[buyerNameKey] : "";
         const invoiceType = r["Invoice Type"] || r["Transaction Type"] || "";
         
         const rawGstin = String(gstinVal).trim().toUpperCase();
-        const validGstin = rawGstin && rawGstin !== "N/A" && rawGstin !== "-" && rawGstin !== "URD" && rawGstin !== "UNREGISTERED";
+        const hasGstin = Boolean(rawGstin && !["N/A", "-", "URD", "UNREGISTERED", "UNDEFINED", "NULL", "NONE"].includes(rawGstin));
         
-        const isB2B = Boolean(
-          validGstin || 
-          (String(buyerVal).toUpperCase().includes("B2B")) || 
-          (String(invoiceType).toUpperCase().includes("B2B"))
-        );
-
+        const isRefund = String(invoiceType).toLowerCase().includes("refund") || String(invoiceType).toLowerCase().includes("return") || String(invoiceType).toLowerCase().includes("credit");
+        const invoiceVal = Number(r["Invoice Amount"]) || 0;
+        const taxableVal = Number(r["Principal Amount"]) || 0;
+        
+        const cgst = Number(r["Cgst Tax"] || r["CGST"]) || 0;
+        const sgst = Number(r["Sgst Tax"] || r["SGST"]) || 0;
+        const igst = Number(r["Igst Tax"] || r["IGST"]) || 0;
+        const isInterState = igst > 0;
+        
+        // Calculate rate (approximate if not provided directly)
+        let rate = 0;
+        if (r["Item Tax Rate"] || r["Tax Rate"] || r["GST Rate"]) {
+          rate = Number(r["Item Tax Rate"] || r["Tax Rate"] || r["GST Rate"] || 0);
+          if (rate < 1) rate = rate * 100; // e.g. 0.18 -> 18
+        } else if (taxableVal > 0) {
+          rate = Math.round(((cgst + sgst + igst) / taxableVal) * 100);
+        }
+        
+        const hsn = r["Hsn/sac"] || r["HSN"] || "-";
+        const desc = r["Item Description"] || "-";
+        const state = r["Ship To State"] || r["State"] || "-";
         const qty = Number(r["Quantity"] || r["Qty"] || r["Shipped Quantity"]) || 0;
         
-        if (isB2B) {
-          b2bData.push({
-            "HSN/SAC": r["Hsn/sac"] || r["HSN"] || "-",
-            "SKU": r["Sku"] || r["SKU"] || "-",
-            "Item Description": r["Item Description"] || "-",
-            "Invoice Number": r["Invoice Number"] || "-",
-            "Invoice Date": r["Invoice Date"] || "-",
-            "Buyer Name": buyerVal || "-",
-            "GSTIN": gstinVal || "-",
-            "State": r["Ship To State"] || r["State"] || "-",
-            "Quantity": qty,
-            "Taxable Value / Principal": Number(r["Principal Amount"]) || 0,
-            "CGST": Number(r["Cgst Tax"] || r["CGST"]) || 0,
-            "SGST": Number(r["Sgst Tax"] || r["SGST"]) || 0,
-            "IGST": Number(r["Igst Tax"] || r["IGST"]) || 0,
-            "Total Tax": (Number(r["Cgst Tax"] || r["CGST"]) || 0) + (Number(r["Sgst Tax"] || r["SGST"]) || 0) + (Number(r["Igst Tax"] || r["IGST"]) || 0),
-            "Total Invoice Amount": Number(r["Invoice Amount"]) || 0
-          });
+        const invDate = r["Invoice Date"] || "-";
+        const invNum = r["Invoice Number"] || "-";
+        
+        const rowObj = {
+          "Invoice Number": invNum,
+          "Invoice Date": invDate,
+          "Buyer Name": buyerVal || "-",
+          "GSTIN": gstinVal || "-",
+          "State": state,
+          "Item Description": desc,
+          "HSN/SAC": hsn,
+          "Quantity": qty,
+          "Tax Rate": `${rate}%`,
+          "Taxable Value": taxableVal,
+          "CGST": cgst,
+          "SGST": sgst,
+          "IGST": igst,
+          "Total Tax": cgst + sgst + igst,
+          "Invoice Amount": invoiceVal
+        };
+
+        // Routing Logic
+        if (hasGstin) {
+          if (isRefund) {
+            cdnrData.push(rowObj);
+          } else {
+            b2bData.push(rowObj);
+          }
         } else {
-          b2cData.push({
-            "HSN/SAC": r["Hsn/sac"] || r["HSN"] || "-",
-            "SKU": r["Sku"] || r["SKU"] || "-",
-            "Item Description": r["Item Description"] || "-",
-            "Invoice Number": r["Invoice Number"] || "-",
-            "Invoice Date": r["Invoice Date"] || "-",
-            "Item Status": r["Item Status"] || r["Order Status"] || "-",
-            "Fulfillment Channel": r["Fulfillment Channel"] || r["Channel"] || "-",
-            "City": r["Ship To City"] || r["City"] || "-",
-            "State": r["Ship To State"] || r["State"] || "-",
-            "Zip Code": r["Ship To Zip"] || r["Postal Code"] || r["Pincode"] || "-",
-            "Quantity": qty,
-            "Unit Price": Number(r["Item Price"]) || (qty > 0 ? (Number(r["Principal Amount"]) / qty).toFixed(2) : 0),
-            "Principal Amount": Number(r["Principal Amount"]) || 0,
-            "Shipping Charge": Number(r["Shipping Charge"] || r["Shipping Rate"]) || 0,
-            "Discount": Number(r["Item Promo Discount"]) || 0,
-            "Net Revenue": Number(r["Invoice Amount"]) || 0
-          });
+          // Unregistered
+          if (isInterState && invoiceVal > 100000) {
+            if (isRefund) {
+              cdnurData.push(rowObj);
+            } else {
+              b2clData.push(rowObj);
+            }
+          } else {
+            // b2cs - Aggregate
+            const key = `${state}|${rate}`;
+            const existing = b2csMap.get(key) || { "Place of Supply": state, "Rate": `${rate}%`, "Taxable Value": 0, "Cess Amount": 0 };
+            existing["Taxable Value"] += (isRefund ? -taxableVal : taxableVal);
+            b2csMap.set(key, existing);
+          }
         }
+        
+        // HSN aggregation
+        const hsnKey = `${hsn}|${desc}`;
+        const existingHsn = hsnMap.get(hsnKey) || { "HSN": hsn, "Description": desc, "Total Quantity": 0, "Total Value": 0, "Taxable Value": 0, "Integrated Tax Amount": 0, "Central Tax Amount": 0, "State/UT Tax Amount": 0, "Cess Amount": 0 };
+        existingHsn["Total Quantity"] += (isRefund ? -qty : qty);
+        existingHsn["Total Value"] += (isRefund ? -invoiceVal : invoiceVal);
+        existingHsn["Taxable Value"] += (isRefund ? -taxableVal : taxableVal);
+        existingHsn["Integrated Tax Amount"] += (isRefund ? -igst : igst);
+        existingHsn["Central Tax Amount"] += (isRefund ? -cgst : cgst);
+        existingHsn["State/UT Tax Amount"] += (isRefund ? -sgst : sgst);
+        hsnMap.set(hsnKey, existingHsn);
       });
-
-      if (b2bData.length > 0) {
-        b2bData.push({}); // Empty row
-        b2bData.push({
-          "HSN/SAC": "GRAND TOTAL",
-          "Quantity": b2bData.reduce((sum, r) => sum + (Number(r["Quantity"]) || 0), 0),
-          "Taxable Value / Principal": b2bData.reduce((sum, r) => sum + (Number(r["Taxable Value / Principal"]) || 0), 0),
-          "CGST": b2bData.reduce((sum, r) => sum + (Number(r["CGST"]) || 0), 0),
-          "SGST": b2bData.reduce((sum, r) => sum + (Number(r["SGST"]) || 0), 0),
-          "IGST": b2bData.reduce((sum, r) => sum + (Number(r["IGST"]) || 0), 0),
-          "Total Tax": b2bData.reduce((sum, r) => sum + (Number(r["Total Tax"]) || 0), 0),
-          "Total Invoice Amount": b2bData.reduce((sum, r) => sum + (Number(r["Total Invoice Amount"]) || 0), 0)
-        });
-      }
-
-      if (b2cData.length > 0) {
-        b2cData.push({}); // Empty row
-        b2cData.push({
-          "HSN/SAC": "GRAND TOTAL",
-          "Item Status": "",
-          "Fulfillment Channel": "",
-          "City": "",
-          "State": "",
-          "Zip Code": "",
-          "Quantity": b2cData.reduce((sum, r) => sum + (Number(r["Quantity"]) || 0), 0),
-          "Unit Price": "",
-          "Principal Amount": b2cData.reduce((sum, r) => sum + (Number(r["Principal Amount"]) || 0), 0),
-          "Shipping Charge": b2cData.reduce((sum, r) => sum + (Number(r["Shipping Charge"]) || 0), 0),
-          "Discount": b2cData.reduce((sum, r) => sum + (Number(r["Discount"]) || 0), 0),
-          "Net Revenue": b2cData.reduce((sum, r) => sum + (Number(r["Net Revenue"]) || 0), 0)
-        });
-      }
 
       const wb = XLSX.utils.book_new();
       
+      const appendIfData = (data, name) => {
+        if (data && data.length > 0) {
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), name);
+        } else {
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{"Message": "No Records found for this category"}]), name);
+        }
+      };
+
+      // Specialized B2B Formatting
       if (b2bData.length > 0) {
-        const b2bSheet = XLSX.utils.json_to_sheet(b2bData);
-        XLSX.utils.book_append_sheet(wb, b2bSheet, "B2B Sales");
-      }
-      
-      if (b2cData.length > 0) {
-        const b2cSheet = XLSX.utils.json_to_sheet(b2cData);
-        XLSX.utils.book_append_sheet(wb, b2cSheet, "B2C Sales");
-      }
+        const uniqueRecipients = new Set(b2bData.map(r => r.GSTIN)).size;
+        const uniqueInvoices = new Set(b2bData.map(r => r["Invoice Number"])).size;
+        const totalInvVal = b2bData.reduce((sum, r) => sum + r["Invoice Amount"], 0);
+        const totalTaxVal = b2bData.reduce((sum, r) => sum + r["Taxable Value"], 0);
 
-      if (b2bData.length === 0 && b2cData.length === 0) {
-        const emptySheet = XLSX.utils.json_to_sheet([{ Message: "No Data Found in current selection" }]);
-        XLSX.utils.book_append_sheet(wb, emptySheet, "Sales Data");
-      }
+        const b2bAoA = [
+          ["Summary For B2B"],
+          ["No. of Recipients", "", "No. of Invoices", "", "Total Invoice Value", "", "", "", "", "", "", "Total Taxable Value", "Total Cess"],
+          [uniqueRecipients, "", uniqueInvoices, "", totalInvVal.toFixed(2), "", "", "", "", "", "", totalTaxVal.toFixed(2), "0.00"],
+          ["GSTIN/UIN of Recipient", "Receiver Name", "Invoice Number", "Invoice date", "Invoice Value", "Place Of Supply", "Reverse Charge", "Applicable % of Tax Rate", "Invoice Type", "E-Commerce GSTIN", "Rate", "Taxable Value", "Cess Amount"]
+        ];
 
-      XLSX.writeFile(wb, `SellerIQ_Report_${activePlan.toUpperCase()}_Excel.xlsx`);
+        b2bData.forEach(r => {
+          b2bAoA.push([
+            r.GSTIN,
+            r["Buyer Name"],
+            r["Invoice Number"],
+            r["Invoice Date"],
+            Number(r["Invoice Amount"]).toFixed(2),
+            r["State"],
+            "N",
+            "",
+            "Regular B2B",
+            "",
+            r["Tax Rate"].replace('%', ''), 
+            Number(r["Taxable Value"]).toFixed(2),
+            "0.00"
+          ]);
+        });
+        const b2bSheet = XLSX.utils.aoa_to_sheet(b2bAoA);
+
+        const headerStyleBlue = {
+          fill: { fgColor: { rgb: "0055D4" } },
+          font: { color: { rgb: "FFFFFF" }, bold: true }
+        };
+        const headerStyleOrange = {
+          fill: { fgColor: { rgb: "FCE4D6" } },
+          font: { color: { rgb: "000000" }, bold: true }
+        };
+
+        for (const cellAddress in b2bSheet) {
+          if (cellAddress[0] === '!') continue;
+          const cell = b2bSheet[cellAddress];
+          const rowNum = parseInt(cellAddress.replace(/\D/g, ''), 10);
+          
+          if (rowNum === 1 || rowNum === 2) {
+            cell.s = headerStyleBlue;
+          } else if (rowNum === 4) {
+            cell.s = headerStyleOrange;
+          }
+        }
+
+        b2bSheet['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },
+          { s: { r: 1, c: 2 }, e: { r: 1, c: 3 } },
+          { s: { r: 1, c: 4 }, e: { r: 1, c: 10 } },
+          { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
+          { s: { r: 2, c: 2 }, e: { r: 2, c: 3 } },
+          { s: { r: 2, c: 4 }, e: { r: 2, c: 10 } }
+        ];
+
+        XLSX.utils.book_append_sheet(wb, b2bSheet, "b2b");
+      } else {
+        appendIfData(b2bData, "b2b");
+      }
+      appendIfData(cdnrData, "cdnr");
+      appendIfData(cdnurData, "cdnur");
+      appendIfData(b2clData, "b2cl");
+      appendIfData(Array.from(b2csMap.values()), "b2cs");
+      appendIfData(Array.from(hsnMap.values()), "hsn");
+
+      XLSX.writeFile(wb, `GSTR1_Ready_Report_${activePlan.toUpperCase()}.xlsx`);
     } catch (err) {
       console.error("Excel Export failed", err);
       alert("Failed to render Excel. Please try again.");
@@ -802,19 +898,14 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
               <div style={{ gridColumn: "1 / -1", ...styles.card }}>
                 <SectionHeader title="🌐 External Platform Connectivity" sub="Real-time synchronization status for unified commerce" />
                 <div className="dash-grid-4" style={{ marginTop: 12 }}>
-                  {[
-                    { name: "Amazon MTR", id: "amz-01", status: "Live", latency: "42ms", icon: "📦" },
-                    { name: "Shopify Store", id: "shp-04", status: "Live", latency: "110ms", icon: "🛍️" },
-                    { name: "Walmart MP", id: "wmt-02", status: "Standby", latency: "—", icon: "🛒" },
-                    { name: "Custom ERP", id: "erp-09", status: "Syncing", latency: "890ms", icon: "🏢" },
-                  ].map((p, i) => (
+                  {connectivity.map((p, i) => (
                     <div key={i} style={{ padding: 16, background: "#f8fafc", borderRadius: 12, border: "1px solid #e2e8f0", position: "relative" }}>
                       <div style={{ fontSize: 24, marginBottom: 12 }}>{p.icon}</div>
                       <div style={{ fontSize: 13, fontWeight: 800 }}>{p.name}</div>
                       <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 8 }}>ID: {p.id}</div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <Badge label={p.status} color={p.status === "Live" ? GREEN : p.status === "Syncing" ? BRAND : "#94a3b8"} />
-                        <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>{p.latency}</span>
+                        <Badge label={p.status} color={p.status === "Live" ? GREEN : p.status === "Syncing" || p.status === "Connecting" ? BRAND : "#94a3b8"} />
+                        <span style={{ fontSize: 10, color: "#64748b", fontWeight: 700 }}>{p.latency > 0 ? `${p.latency}ms` : "—"}</span>
                       </div>
                     </div>
                   ))}
@@ -1113,6 +1204,72 @@ function AppContent() {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [demoBlockReason, setDemoBlockReason] = useState(null);
   const [ingestion, setIngestion] = useState({ loading: false, msg: "", progress: 0 });
+  const [planStatus, setPlanStatus] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('siq_plan_status') || 'null'); } catch { return null; }
+  });
+  const [expiredSession, setExpiredSession] = useState(false);
+
+  // ── Plan Expiry Polling ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!userRole || userRole === 'admin' || isDemoMode) return;
+
+    const checkPlanStatus = async () => {
+      const token = sessionStorage.getItem('siq_auth_token');
+      if (!token) return;
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/plan-status', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setPlanStatus(data);
+        sessionStorage.setItem('siq_plan_status', JSON.stringify(data));
+
+        if (data.status === 'expired') {
+          // Force logout and show expired screen
+          sessionStorage.clear();
+          setExpiredSession(true);
+          setUserRole(null);
+          setLoginView('user_login');
+          setShowLanding(false);
+        }
+      } catch (e) {
+        console.warn('[PlanStatus] Poll failed:', e);
+      }
+    };
+
+    checkPlanStatus(); // immediate check on login
+    const interval = setInterval(checkPlanStatus, 60 * 1000); // every 60s
+    return () => clearInterval(interval);
+  }, [userRole, isDemoMode]);
+
+  // ── Expiry Warning Banner ────────────────────────────────────────────────
+  const expiryBanner = (planStatus && (planStatus.status === 'expiring_soon') && userRole && !isDemoMode) ? (
+    <div id="plan-expiry-warning" style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99998,
+      background: 'linear-gradient(90deg, #92400e, #d97706, #92400e)',
+      backgroundSize: '200% 100%',
+      animation: 'gradientSlide 3s linear infinite',
+      color: '#fff', padding: '12px 24px',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
+      fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 700,
+      boxShadow: '0 4px 20px rgba(217,119,6,0.5)'
+    }}>
+      <style>{`@keyframes gradientSlide { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }`}</style>
+      <span style={{ fontSize: 20 }}>⏰</span>
+      <span>
+        ⚠️ Your <strong style={{ textTransform: 'uppercase' }}>{planStatus.plan}</strong> plan expires in{' '}
+        <strong>{planStatus.minutes_remaining} minute{planStatus.minutes_remaining !== 1 ? 's' : ''}</strong>!
+        {' '}Recharge now to avoid losing access.
+      </span>
+      <button
+        onClick={() => { sessionStorage.clear(); setUserRole(null); setLoginView('plans'); setShowLanding(false); window.location.hash = 'login'; }}
+        style={{ padding: '6px 18px', borderRadius: 8, background: '#fff', color: '#92400e', border: 'none', fontWeight: 900, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' }}
+      >
+        🔄 Recharge Now
+      </button>
+    </div>
+  ) : null;
 
   const handleFileSelection = async (file) => {
     if (!file || ingestion.loading) return;
@@ -1259,11 +1416,16 @@ function AppContent() {
   const isGuestTryingFree = !userRole && (isDemoMode || window.location.hash.toLowerCase().includes('upload') || window.location.hash.toLowerCase().includes('demo'));
   
   if (!userRole && !isGuestTryingFree) {
-    return <LoginSection initialView={loginView} onLogin={(role, plan) => { 
-      setUserRole(role || 'user'); 
-      if(plan) setActivePlan(plan); 
-      window.location.hash = role === 'admin' ? 'admin' : 'upload';
-    }} />;
+    return <LoginSection
+      initialView={expiredSession ? 'expired_redirect' : loginView}
+      onLogin={(role, plan, usageStats, initialPlanStatus) => {
+        setUserRole(role || 'user');
+        if (plan) setActivePlan(plan);
+        if (initialPlanStatus) setPlanStatus(initialPlanStatus);
+        setExpiredSession(false);
+        window.location.hash = role === 'admin' ? 'admin' : 'upload';
+      }}
+    />;
   }
   
   if (userRole === 'admin') {
@@ -1277,36 +1439,58 @@ function AppContent() {
     if (isDemoMode) {
       return (
         <>
-          <DemoUpload 
-            onFileSelect={handleFileSelection} 
-            ingestionStatus={ingestion}
-          />
+          {expiryBanner}
+          <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+            <DemoUpload 
+              onFileSelect={handleFileSelection} 
+              ingestionStatus={ingestion}
+            />
+          </div>
           {demoLimitOverlay}
         </>
       );
     }
 
     return (
-      <UploadSection 
-        activePlan={activePlan} 
-        onFileSelect={handleFileSelection} 
-        ingestionStatus={ingestion}
-      />
+      <>
+        {expiryBanner}
+        <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+          <UploadSection 
+            activePlan={activePlan} 
+            onFileSelect={handleFileSelection} 
+            ingestionStatus={ingestion}
+          />
+        </div>
+      </>
     );
   }
 
   if (state.source === 'shopify') {
-    return <ShopifyDashboard rawData={state.rawData} filename={state.filename} onReset={() => {
-      setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null });
-      window.location.hash = 'upload';
-    }} />;
+    return (
+      <>
+        {expiryBanner}
+        <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+          <ShopifyDashboard rawData={state.rawData} filename={state.filename} onReset={() => {
+            setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null });
+            window.location.hash = 'upload';
+          }} />
+        </div>
+      </>
+    );
   }
 
   if (state.source === 'custom') {
-    return <ERPDashboard rawData={state.rawData} filename={state.filename} onReset={() => {
-      setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null });
-      window.location.hash = 'upload';
-    }} />;
+    return (
+      <>
+        {expiryBanner}
+        <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+          <ERPDashboard rawData={state.rawData} filename={state.filename} onReset={() => {
+            setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null });
+            window.location.hash = 'upload';
+          }} />
+        </div>
+      </>
+    );
   }
 
   return (
@@ -1331,19 +1515,25 @@ function AppContent() {
         .filter-input { padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f9fafb; font-size: 13px; outline: none; }
         .page-title { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); }
       `}</style>
-      <Dashboard 
-        rawData={state.rawData} 
-        filename={state.filename} 
-        source={state.source}
-        activePlan={activePlan} 
-        session_id={state.session_id}
-        fraudData={state.fraud}
-        isDemoMode={isDemoMode}
-        onReset={() => {
-          setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null, fraud: null });
-          window.location.hash = isDemoMode ? 'demo' : 'upload';
-        }} 
-      />
+      {expiryBanner}
+      <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+        <Dashboard 
+          rawData={state.rawData} 
+          filename={state.filename} 
+          source={state.source}
+          activePlan={activePlan} 
+          session_id={state.session_id}
+          fraudData={state.fraud}
+          isDemoMode={isDemoMode}
+          onReset={(fileOrEvent) => {
+            if (fileOrEvent instanceof File) {
+              return handleFileSelection(fileOrEvent);
+            }
+            setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null, fraud: null });
+            window.location.hash = isDemoMode ? 'demo' : 'upload';
+          }} 
+        />
+      </div>
       {demoLimitOverlay}
     </>
   );

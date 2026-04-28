@@ -25,6 +25,11 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.on_event("startup")
 async def startup():
+    # Start background tasks
+    import asyncio
+    from app.tasks.expiry_scheduler import check_expiries_loop
+    asyncio.create_task(check_expiries_loop())
+    
     # Create tables if they don't exist
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

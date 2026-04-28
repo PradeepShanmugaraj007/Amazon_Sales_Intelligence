@@ -25,6 +25,7 @@ class CompletePaymentRequest(BaseModel):
     name: str
     phone: str
     email: str
+    billing_cycle: int = 12
 
 def generate_user_id():
     return "SIQ-" + "".join(random.choices(string.digits, k=4))
@@ -56,7 +57,8 @@ async def create_payment_order(req: PaymentRequest):
 @router.post("/complete-payment")
 async def complete_payment(req: CompletePaymentRequest):
     existing = stateless_service.find_user_by_email(req.email)
-    expiry_date = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+    days_to_add = req.billing_cycle * 30
+    expiry_date = (datetime.now() + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
 
     if existing:
         stateless_service.update_user(existing["id"], {

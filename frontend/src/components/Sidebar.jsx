@@ -72,7 +72,7 @@ const Sidebar = ({
   ];
 
   const planOrder = { starter: 0, pro: 1, enterprise: 2 };
-  const canAccess = (minPlan) => (planOrder[activePlan] || 0) >= (planOrder[minPlan] || 0);
+  const canAccess = (minPlan) => (planOrder[String(activePlan).toLowerCase()] || 0) >= (planOrder[minPlan] || 0);
 
   const supportItems = [
     { id: "about",   label: "About Us",      icon: "🏢" },

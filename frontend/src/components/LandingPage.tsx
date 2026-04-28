@@ -805,7 +805,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin }: Landin
             <div className="pricing-card glass fade-in-on-scroll">
               <div>
                 <h3>Starter</h3>
-                <div className="price">₹2,999<span>/mo</span></div>
+                <div className="price">₹3,060<span>/yr</span></div>
               </div>
               <ul className="features-list">
                 <li><Check className="check" size={18} /> 3 files per month</li>
@@ -820,7 +820,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin }: Landin
               <div>
                 <div className="badge" style={{ marginBottom: '1rem', background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: 'white', border: 'none', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)' }}>Most Popular</div>
                 <h3>Pro</h3>
-                <div className="price">₹5,999<span>/mo</span></div>
+                <div className="price">₹15,300<span>/yr</span></div>
               </div>
               <ul className="features-list">
                 <li><Check className="check" size={18} /> 10 files per month</li>
@@ -835,7 +835,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin }: Landin
             <div className="pricing-card glass fade-in-on-scroll">
               <div>
                 <h3>Enterprise</h3>
-                <div className="price">₹14,999<span>/mo</span></div>
+                <div className="price">₹50,989<span>/yr</span></div>
               </div>
               <ul className="features-list">
                 <li><Check className="check" size={18} /> 30 files per month</li>

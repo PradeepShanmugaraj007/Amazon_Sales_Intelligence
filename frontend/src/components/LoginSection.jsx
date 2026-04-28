@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck, Lock, User, ArrowRight, BarChart2, TrendingUp, CheckCircle, CreditCard, Key, Briefcase, Phone, Mail, RotateCcw, AlertTriangle } from "lucide-react";
-
+import { ShieldCheck, Lock, User, ArrowRight, BarChart2, TrendingUp, CheckCircle, CreditCard, Key, Briefcase, Phone, Mail, RotateCcw, AlertTriangle, MapPin } from "lucide-react";
 const loadRazorpay = () => new Promise((resolve) => {
   const script = document.createElement("script");
   script.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -10,13 +9,16 @@ const loadRazorpay = () => new Promise((resolve) => {
 });
 
 const SaaS_PLANS = [
-  { id: 'starter', name: 'Starter', price: 2999, features: ['3 files allowed / month', 'Basic Analytics', 'Standard Reports', 'Email Support'] },
-  { id: 'pro', name: 'Pro', price: 5999, recommended: true, features: ['10 files allowed / month', 'Advanced Fraud AI', 'Revenue Forecasting', '24/7 Priority Support'] },
-  { id: 'enterprise', name: 'Enterprise', price: 14999, features: ['30 files allowed / month', 'SaaS Integration Hub', 'Custom Modeling', '24/7 Call Support'] }
+  { id: 'starter', name: 'Starter', prices: { 1: 300, 12: 3060, 24: 5400, 48: 8640 }, features: ['3 files per month', 'Up to 5,000 orders', 'Email Support', 'Basic Analytics'] },
+  { id: 'pro', name: 'Pro', prices: { 1: 1500, 12: 15300, 24: 27000, 48: 43200 }, recommended: true, features: ['10 files per month', 'Up to 25,000 orders', '24/7 Priority Support', 'AI Fraud Detection', 'Predictive Forecasting'] },
+  { id: 'enterprise', name: 'Enterprise', prices: { 1: 4999, 12: 50989, 24: 89982, 48: 143971 }, features: ['30 files per month', 'Unlimited orders', '24/7 Call Support', 'Full API Access', 'Custom Integrations'] }
 ];
 
 const LoginSection = ({ onLogin, initialView = "plans" }) => {
-  const [view, setView] = useState(initialView); 
+  // 'expired_redirect' means the dashboard pushed the user out due to plan expiry
+  const resolvedInitialView = initialView === 'expired_redirect' ? 'user_login' : initialView;
+  const [view, setView] = useState(resolvedInitialView);
+  const [sessionExpiredMsg] = useState(initialView === 'expired_redirect');
   // views: plans | user_login | admin | prefill | payment_success | forgot_password | forgot_sent | expired
 
   const [user, setUser] = useState("");
@@ -24,6 +26,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
   const [err, setErr] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [billingCycle, setBillingCycle] = useState(12);
 
   // Prefill form state
   const [prefillPlan, setPrefillPlan] = useState(null);
@@ -68,6 +71,10 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
     setIsLoading(true);
     setPrefillErr("");
 
+    const basePrice = prefillPlan.prices ? prefillPlan.prices[billingCycle] : prefillPlan.price;
+    const gstAmount = Math.round(basePrice * 0.18);
+    const totalAmount = basePrice + gstAmount;
+
     const resolved = await loadRazorpay();
     if (!resolved) {
       setPrefillErr("Razorpay SDK failed to load. Check your network.");
@@ -79,7 +86,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
       const response = await fetch('http://localhost:5000/api/payments/create-payment-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: prefillPlan.price, currency: "INR" })
+        body: JSON.stringify({ amount: totalAmount, currency: "INR" })
       });
       const data = await response.json();
 
@@ -91,7 +98,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
 
       const options = {
         key: data.key_id,
-        amount: prefillPlan.price * 100,
+        amount: totalAmount * 100,
         currency: "INR",
         order_id: data.order_id,
         name: "SellerIQ Pro",
@@ -113,7 +120,8 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
                 plan: prefillPlan.id,
                 name: buyerName,
                 phone: buyerPhone,
-                email: buyerEmail
+                email: buyerEmail,
+                billing_cycle: billingCycle
               })
             });
             const completeData = await completeRes.json();
@@ -157,33 +165,40 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
         body: JSON.stringify({ email: user, password: pass })
       });
       const data = await res.json();
+
+      // ── Handle expired plan ──────────────────────────────────────────────
+      if (res.status === 402 && data.detail === "PLAN_EXPIRED") {
+        setIsLoading(false);
+        setSuccessData({
+          name: data.name,
+          email: data.email,
+          plan: data.plan,
+          expiry: data.expiry_date
+        });
+        setView("expired");
+        return;
+      }
+
       if (!res.ok) {
-        if (data.detail === "PLAN_EXPIRED") {
-          setIsLoading(false);
-          setSuccessData({
-            name: data.name,
-            email: data.email,
-            plan: data.plan,
-            expiry: data.expiry_date
-          });
-          setView("expired");
-          return;
-        }
         setErr(data.detail || "Login failed.");
         setIsLoading(false);
         return;
       }
+
       // Store the real signed JWT from backend
       sessionStorage.setItem("siq_auth_token", data.access_token);
       sessionStorage.setItem("siq_user_name", data.user.name);
-      localStorage.setItem("userEmail", data.user.email); 
+      sessionStorage.setItem("siq_plan_expiry", data.user.plan_expiry || "");
+      sessionStorage.setItem("siq_plan_status", JSON.stringify(data.plan_status || {}));
+      localStorage.setItem("userEmail", data.user.email);
       setMsg("Welcome back, " + data.user.name + "!");
-      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats), 800);
+      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats, data.plan_status), 800);
     } catch {
       setErr("Unable to reach the server. Make sure the backend is running.");
       setIsLoading(false);
     }
   };
+
 
   // ── Admin Login ───────────────────────────────────────────────────────────
   const handleAdminLogin = (e) => {
@@ -253,7 +268,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
 
         .auth-left { flex: 1.3; padding: 80px 60px; display: flex; flex-direction: column; justify-content: center; position: relative; }
         .auth-right { flex: 1; min-width: 440px; background: rgba(0, 0, 0, 0.3); padding: 80px 60px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
-        .auth-right.plans-view { flex: 2; padding: 60px 40px; min-width: auto; }
+        .auth-right.expanded-view { flex: 2; padding: 60px 40px; min-width: auto; }
 
         .input-group { position: relative; margin-bottom: 20px; }
         .input-icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: rgba(255, 255, 255, 0.4); transition: color 0.3s ease; }
@@ -277,9 +292,9 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
         .feature-icon-wrapper { width: 56px; height: 56px; border-radius: 16px; background: rgba(255, 255, 255, 0.05); display: flex; align-items: center; justify-content: center; color: #60a5fa; border: 1px solid rgba(255, 255, 255, 0.1); }
         .brand-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 20px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd; font-size: 13px; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 24px; }
 
-        .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; animation: slideIn 0.4s ease-out; }
+        .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; animation: slideIn 0.4s ease-out; }
         .plan-card {
-          background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 32px 24px;
+          background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 28px 20px;
           display: flex; flex-direction: column; transition: all 0.3s ease; position: relative; overflow: hidden;
         }
         .plan-card:hover { transform: translateY(-8px); background: rgba(255, 255, 255, 0.06); border-color: rgba(59, 130, 246, 0.4); }
@@ -288,9 +303,9 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
           content: 'MOST POPULAR'; position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(90deg, #2563eb, #3b82f6);
           color: #fff; font-size: 11px; font-weight: 800; text-align: center; padding: 6px 0; letter-spacing: 0.1em;
         }
-        .plan-price { font-size: 40px; font-weight: 900; color: #fff; margin: 16px 0; }
-        .plan-features { flex: 1; margin: 24px 0; display: flex; flex-direction: column; gap: 12px; }
-        .plan-feat-item { display: flex; align-items: flex-start; gap: 12px; color: rgba(255, 255, 255, 0.7); font-size: 14px; }
+        .plan-price { font-size: 32px; font-weight: 900; color: #fff; margin: 12px 0 4px; line-height: 1.1; display: flex; align-items: baseline; gap: 4px; flex-wrap: nowrap; }
+        .plan-features { flex: 1; margin: 16px 0; display: flex; flex-direction: column; gap: 10px; }
+        .plan-feat-item { display: flex; align-items: flex-start; gap: 10px; color: rgba(255, 255, 255, 0.7); font-size: 13px; line-height: 1.4; }
         .subscribe-btn {
           width: 100%; padding: 14px; border-radius: 12px; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s;
           display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -324,7 +339,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
         <div className="orb orb-2" />
         <div className="orb orb-3" />
 
-        <div className={`auth-container ${view === "plans" ? 'expanded' : ''}`}>
+        <div className={`auth-container ${view === "plans" || view === "prefill" ? 'expanded' : ''}`}>
           {/* LEFT: Branding panel */}
           <div className="auth-left">
             <div className="brand-badge">
@@ -354,7 +369,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
           </div>
 
           {/* RIGHT: Dynamic view */}
-          <div className={`auth-right ${view === "plans" ? 'plans-view' : ''}`}>
+          <div className={`auth-right ${view === "plans" || view === "prefill" ? 'expanded-view' : ''}`}>
 
             {/* ── PLANS ── */}
             {view === "plans" && (
@@ -362,15 +377,34 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
                 <div style={{ textAlign: "center", marginBottom: 40 }}>
                   <h2 style={{ color: "#fff", fontSize: 28, fontWeight: 800, margin: "0 0 10px" }}>Select a SaaS Plan</h2>
                   <p style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: 15, margin: 0 }}>Initialize your workspace by activating your subscription.</p>
+                  
+                  <div style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 100, border: '1px solid rgba(255,255,255,0.1)', marginTop: 24, gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {[1, 12, 24, 48].map(cycle => (
+                      <button key={cycle} onClick={() => setBillingCycle(cycle)} style={{ padding: '8px 20px', borderRadius: 100, border: 'none', background: billingCycle === cycle ? '#3b82f6' : 'transparent', color: billingCycle === cycle ? '#fff' : '#94a3b8', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.3s' }}>
+                        {cycle === 1 ? '1 Month' : `${cycle} Months`}
+                        {cycle === 12 && <span style={{ color: billingCycle === 12 ? '#bfdbfe' : '#34d399', fontSize: 11, marginLeft: 6 }}>Save 15%</span>}
+                        {cycle === 24 && <span style={{ color: billingCycle === 24 ? '#bfdbfe' : '#f59e0b', fontSize: 11, marginLeft: 6 }}>Save 25%</span>}
+                        {cycle === 48 && <span style={{ color: billingCycle === 48 ? '#bfdbfe' : '#f43f5e', fontSize: 11, marginLeft: 6 }}>Save 40%</span>}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="plans-grid">
-                  {SaaS_PLANS.map(plan => (
+                  {SaaS_PLANS.map(basePlan => {
+                    const planPrice = basePlan.prices[billingCycle];
+                    const plan = {
+                      ...basePlan,
+                      displayPrice: planPrice,
+                      label: billingCycle === 1 ? ' / mo' : ` / ${billingCycle} mo`,
+                      price: planPrice
+                    };
+                    return (
                     <div key={plan.id} className={`plan-card ${plan.recommended ? 'recommended' : ''}`}>
-                      <h3 style={{ color: '#fff', margin: plan.recommended ? '12px 0 0' : '0', fontSize: 20 }}>{plan.name}</h3>
+                      <h3 style={{ color: '#fff', margin: plan.recommended ? '16px 0 0' : '4px 0 0', fontSize: 18, fontWeight: 800 }}>{plan.name}</h3>
                       <div className="plan-price">
-                        <span style={{ fontSize: 20, verticalAlign: 'top', color: 'rgba(255,255,255,0.5)' }}>₹</span>
-                        {plan.price.toLocaleString('en-IN')}
-                        <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}> / mo</span>
+                        <span style={{ fontSize: 16, verticalAlign: 'top', color: 'rgba(255,255,255,0.5)', lineHeight: 1.8 }}>₹</span>
+                        <span>{plan.displayPrice.toLocaleString('en-IN')}</span>
+                        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500, whiteSpace: 'nowrap' }}>{plan.label}</span>
                       </div>
                       <div className="plan-features">
                         {plan.features.map((f, i) => (
@@ -380,8 +414,8 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
                           </div>
                         ))}
                       </div>
-                      <button onClick={() => handleSelectPlan(plan)} className={`subscribe-btn ${plan.recommended ? 'btn-filled' : 'btn-outline'}`}>
-                        Subscribe — ₹{plan.price.toLocaleString('en-IN')}/mo <CreditCard size={18} />
+                      <button onClick={() => handleSelectPlan({ ...plan, price: plan.displayPrice })} className={`subscribe-btn ${plan.recommended ? 'btn-filled' : 'btn-outline'}`}>
+                        Subscribe — ₹{plan.displayPrice.toLocaleString('en-IN')}{plan.label} <CreditCard size={18} />
                       </button>
                       <button
                         onClick={async () => {
@@ -414,7 +448,8 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
                         ⚡ Bypass — Testing Mode
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="footer-nav">
                   <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>Already have an account?</span>
@@ -426,39 +461,113 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
             )}
 
             {/* ── PREFILL FORM ── */}
-            {view === "prefill" && prefillPlan && (
-              <div style={{ animation: "slideIn 0.3s ease-out" }}>
-                <button onClick={() => resetForm("plans")} className="text-btn" style={{ color: "rgba(255,255,255,0.5)", marginBottom: 24 }}>
-                  <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Back to Plans
-                </button>
-                <div style={{ textAlign: "center", marginBottom: 36 }}>
-                  <div style={{ display: 'inline-block', padding: '6px 20px', background: 'rgba(59,130,246,0.2)', borderRadius: 100, color: '#93c5fd', fontSize: 13, fontWeight: 800, marginBottom: 16, border: '1px solid rgba(59,130,246,0.4)' }}>
-                    {prefillPlan.name.toUpperCase()} PLAN · ₹{prefillPlan.price.toLocaleString('en-IN')}/mo
-                  </div>
-                  <h2 style={{ color: "#fff", fontSize: 26, fontWeight: 800, margin: "0 0 8px" }}>Complete Your Details</h2>
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: 0 }}>We'll send your login credentials to your email after payment.</p>
-                </div>
-                <form onSubmit={handlePrefillSubmit}>
-                  <div className="input-group">
-                    <User size={20} className="input-icon" />
-                    <input type="text" className="custom-input" placeholder="Full Name" value={buyerName} onChange={e => setBuyerName(e.target.value)} required />
-                  </div>
-                  <div className="input-group">
-                    <Phone size={20} className="input-icon" />
-                    <input type="tel" className="custom-input" placeholder="Mobile Number (10 digits)" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} required />
-                  </div>
-                  <div className="input-group">
-                    <Mail size={20} className="input-icon" />
-                    <input type="email" className="custom-input" placeholder="Gmail Address" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} required />
-                  </div>
-                  {prefillErr && <div className="err-box">{prefillErr}</div>}
-                  <button type="submit" className="auth-btn" disabled={isLoading}>
-                    {isLoading ? "Opening Checkout..." : `Proceed to Pay ₹${prefillPlan.price.toLocaleString('en-IN')}`}
-                    {!isLoading && <CreditCard size={20} />}
+            {view === "prefill" && prefillPlan && (() => {
+              const basePrice = prefillPlan.prices ? prefillPlan.prices[billingCycle] : prefillPlan.price;
+              const standardPrice = prefillPlan.prices ? prefillPlan.prices[1] * billingCycle : basePrice;
+              const discountPct = billingCycle === 12 ? 15 : billingCycle === 24 ? 25 : billingCycle === 48 ? 40 : 0;
+              const amountSaved = standardPrice - basePrice;
+              const gstAmount = Math.round(basePrice * 0.18);
+              const totalAmount = basePrice + gstAmount;
+              const planLabel = billingCycle === 1 ? '/ mo' : `/ ${billingCycle} mo`;
+
+              return (
+              <div style={{ animation: "slideIn 0.3s ease-out", display: 'flex', gap: 60, width: '100%' }}>
+                {/* LEFT: Billing Details */}
+                <div style={{ flex: 1.2, display: 'flex', flexDirection: 'column' }}>
+                  <button onClick={() => resetForm("plans")} className="text-btn" style={{ color: "rgba(255,255,255,0.5)", marginBottom: 24, alignSelf: 'flex-start' }}>
+                    <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Back to Plans
                   </button>
-                </form>
+                  <h2 style={{ color: "#fff", fontSize: 26, fontWeight: 800, margin: "0 0 8px" }}>Billing Address</h2>
+                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: '0 0 32px' }}>We'll send your login credentials to your email after payment.</p>
+                  
+                  <div style={{ display: 'inline-block', padding: '6px 20px', background: 'rgba(59,130,246,0.1)', borderRadius: 100, color: '#93c5fd', fontSize: 13, fontWeight: 800, marginBottom: 24, border: '1px solid rgba(59,130,246,0.3)', alignSelf: 'flex-start' }}>
+                    {prefillPlan.name.toUpperCase()} PLAN · ₹{basePrice.toLocaleString('en-IN')} {planLabel}
+                  </div>
+                  
+                  <form onSubmit={handlePrefillSubmit}>
+                    <div className="input-group">
+                      <User size={20} className="input-icon" />
+                      <input type="text" className="custom-input" placeholder="Name on Card / Full Name" value={buyerName} onChange={e => setBuyerName(e.target.value)} required />
+                    </div>
+                    <div className="input-group">
+                      <Phone size={20} className="input-icon" />
+                      <input type="tel" className="custom-input" placeholder="Mobile Number (10 digits)" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} required />
+                    </div>
+                    <div className="input-group">
+                      <Mail size={20} className="input-icon" />
+                      <input type="email" className="custom-input" placeholder="Email Address" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} required />
+                    </div>
+                    <div className="input-group">
+                      <MapPin size={20} className="input-icon" />
+                      <input type="text" className="custom-input" placeholder="Billing Address (Optional)" />
+                    </div>
+                    {prefillErr && <div className="err-box">{prefillErr}</div>}
+                    <button type="submit" className="auth-btn" disabled={isLoading} style={{ marginTop: 24, background: '#6366f1' }}>
+                      {isLoading ? "Opening Checkout..." : `Submit Payment ₹${totalAmount.toLocaleString('en-IN')}`}
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.4)', fontSize: 12, justifyContent: 'center', marginTop: 16 }}>
+                      <ShieldCheck size={14} /> Encrypted and secure payments
+                    </div>
+                  </form>
+                </div>
+
+                {/* RIGHT: Order Summary */}
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, padding: 32, display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ color: '#fff', fontSize: 20, fontWeight: 800, margin: '0 0 24px' }}>Order summary</h3>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 15, fontWeight: 600 }}>{prefillPlan.name} plan</span>
+                    <span style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>₹{standardPrice.toLocaleString('en-IN')}</span>
+                  </div>
+                  
+                  {billingCycle > 1 && amountSaved > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                      <span style={{ color: '#34d399', fontSize: 14, fontWeight: 600 }}>Discount ({discountPct}%)</span>
+                      <span style={{ color: '#34d399', fontSize: 14, fontWeight: 700 }}>-₹{amountSaved.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Billing period</span>
+                    <select 
+                      value={billingCycle} 
+                      onChange={(e) => setBillingCycle(Number(e.target.value))}
+                      style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: 8, fontSize: 14, outline: 'none', cursor: 'pointer' }}
+                    >
+                      <option value={1} style={{ background: '#0f172a' }}>1-month period</option>
+                      <option value={12} style={{ background: '#0f172a' }}>12-month period</option>
+                      <option value={24} style={{ background: '#0f172a' }}>24-month period</option>
+                      <option value={48} style={{ background: '#0f172a' }}>48-month period</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Enterprise Setup Fee</span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                       <span style={{ textDecoration: 'line-through', color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>₹1,500</span>
+                       <span style={{ color: '#34d399', fontSize: 14, fontWeight: 700 }}>₹0</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, borderBottom: '1px dotted rgba(255,255,255,0.3)', cursor: 'help' }} title="Taxes include 18% GST.">Taxes (18% GST)</span>
+                    <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>₹{gstAmount.toLocaleString('en-IN')}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+                    <span style={{ color: '#fff', fontSize: 18, fontWeight: 800 }}>Total</span>
+                    <span style={{ color: '#fff', fontSize: 24, fontWeight: 900 }}>₹{totalAmount.toLocaleString('en-IN')}</span>
+                  </div>
+
+                  <a href="#" style={{ color: '#6366f1', fontSize: 14, fontWeight: 600, textDecoration: 'none', marginBottom: 24 }}>Have a coupon code?</a>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)', fontSize: 13, justifyContent: 'center', marginTop: 'auto', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <ShieldCheck size={16} /> 30-day money-back guarantee
+                  </div>
+                </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* ── PAYMENT SUCCESS ── */}
             {view === "payment_success" && successData && (
@@ -492,6 +601,16 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
             {/* ── USER LOGIN ── */}
             {view === "user_login" && (
               <>
+                {/* Session-expired notice (shown when dashboard auto-logged them out) */}
+                {sessionExpiredMsg && (
+                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 14, padding: '14px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, animation: 'fadeIn 0.4s ease' }}>
+                    <AlertTriangle size={20} color="#ef4444" style={{ flexShrink: 0 }} />
+                    <div>
+                      <div style={{ color: '#fca5a5', fontWeight: 800, fontSize: 14 }}>Session Expired</div>
+                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 2 }}>Your subscription plan has expired. Please login and recharge to continue.</div>
+                    </div>
+                  </div>
+                )}
                 <div style={{ textAlign: "center", marginBottom: 48, animation: "slideIn 0.3s ease-out" }}>
                   <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.05))", border: "1px solid rgba(59, 130, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
                     <Briefcase size={32} color="#60a5fa" />
