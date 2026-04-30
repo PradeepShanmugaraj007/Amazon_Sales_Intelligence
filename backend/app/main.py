@@ -21,7 +21,7 @@ app.add_middleware(
 
 
 # Include API Router
-app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(api_router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def startup():
@@ -51,4 +51,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)

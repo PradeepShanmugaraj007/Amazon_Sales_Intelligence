@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = '/api/v1';
 
 const apiInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -38,7 +38,7 @@ export const uploadFile = async (files, onProgress) => {
     formData.append('files', files);
   }
   
-  const response = await apiInstance.post('/analyze/', formData, {
+  const response = await apiInstance.post('/analyze', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },

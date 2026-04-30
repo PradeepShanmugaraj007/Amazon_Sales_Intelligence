@@ -15,6 +15,7 @@ import * as XLSX from 'xlsx-js-style';
 
 import LoginSection from "./components/LoginSection";
 import LandingPage from "./components/LandingPage";
+import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import UploadSection from "./components/UploadSection";
 import Sidebar from "./components/Sidebar";
 import "./responsive_overrides.css";
@@ -31,9 +32,9 @@ import DemoUpload from "./components/DemoUpload";
 import RegionAnalysis from "./components/RegionAnalysis";
 
 const SaaS_PLANS = [
-  { id: 'starter', name: 'Starter', price: 300, features: ['3 files per month', 'Up to 5,000 orders', 'Email Support', 'Basic Analytics'] },
-  { id: 'pro', name: 'Pro', price: 1500, recommended: true, features: ['10 files per month', 'Up to 25,000 orders', '24/7 Priority Support', 'AI Fraud Detection', 'Predictive Forecasting'] },
-  { id: 'enterprise', name: 'Enterprise', price: 4999, features: ['30 files per month', 'Unlimited orders', '24/7 Call Support', 'Full API Access', 'Custom Integrations'] }
+  { id: 'starter', name: 'Starter', price: 299, features: ['3 files per month', 'Up to 5,000 orders', 'Email Support', 'Basic Analytics'] },
+  { id: 'pro', name: 'Pro', price: 649, recommended: true, features: ['10 files per month', 'Up to 25,000 orders', '24/7 Priority Support', 'AI Fraud Detection', 'Predictive Forecasting'] },
+  { id: 'enterprise', name: 'Enterprise', price: 1499, features: ['30 files per month', 'Unlimited orders', '24/7 Call Support', 'Full API Access', 'Custom Integrations'] }
 ];
 
 const SaaSMembership = ({ styles, activePlan }) => {
@@ -117,7 +118,7 @@ const UpgradeBanner = ({ feature, requiredPlan, color, icon }) => (
 );
 
 // ─── MAIN DASHBOARD ─────────────────────────────────────────────────────────
-const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudData, onReset, isDemoMode }) => {
+const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudData, onReset, isDemoMode, onLogout }) => {
   const { dataset, updateDataset } = useAppContext();
 
   // Plan-based tab access rules
@@ -160,6 +161,17 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    if (!profileOpen) return;
+    const close = (e) => {
+      if (!e.target.closest('#user-profile-menu')) setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [profileOpen]);
 
   const [connectivity, setConnectivity] = useState([
     { name: "Amazon MTR", id: "amz-01", status: "Live", latency: 42, icon: "📦" },
@@ -300,13 +312,28 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         const hasGstin = Boolean(rawGstin && !["N/A", "-", "URD", "UNREGISTERED", "UNDEFINED", "NULL", "NONE"].includes(rawGstin));
         
         const isRefund = String(invoiceType).toLowerCase().includes("refund") || String(invoiceType).toLowerCase().includes("return") || String(invoiceType).toLowerCase().includes("credit");
-        const invoiceVal = Number(r["Invoice Amount"]) || 0;
-        const taxableVal = Number(r["Principal Amount"]) || 0;
-        
-        const cgst = Number(r["Cgst Tax"] || r["CGST"]) || 0;
-        const sgst = Number(r["Sgst Tax"] || r["SGST"]) || 0;
-        const igst = Number(r["Igst Tax"] || r["IGST"]) || 0;
-        const isInterState = igst > 0;
+
+        // Multi-alias column resolver for flexible B2C/B2B file formats
+        const findCol = (aliases) => {
+          for (const alias of aliases) {
+            const norm = alias.toLowerCase().replace(/[\s_/]/g, '');
+            const key = rowKeys.find(k => k.toLowerCase().replace(/[\s_/]/g, '') === norm);
+            if (key !== undefined && r[key] !== undefined && r[key] !== "") return Number(r[key]) || 0;
+          }
+          return 0;
+        };
+
+        const invoiceVal = findCol(["Invoice Amount", "Invoice Total", "Total Amount", "Grand Total", "InvoiceAmount", "TotalAmount"]);
+        const taxableVal = findCol(["Principal Amount", "Taxable Value", "Item Price", "Selling Price", "TaxableValue", "PrincipalAmount", "Net Amount"]);
+
+        const cgst = findCol(["Cgst Tax", "CGST", "CGST_Tax", "CgstTax", "cgst"]);
+        const sgst = findCol(["Sgst Tax", "SGST", "SGST_Tax", "SgstTax", "sgst", "UTGST", "Utgst Tax"]);
+        const igst = findCol(["Igst Tax", "IGST", "IGST_Tax", "IgstTax", "igst"]);
+
+        // Determine inter-state: primary = IGST > 0; fallback = ship state differs from seller state
+        const shipState = (r["Ship To State"] || r["State"] || "").trim().toLowerCase();
+        const sellerState = (r["Seller State"] || r["From State"] || "").trim().toLowerCase();
+        const isInterState = igst > 0 || (sellerState && shipState && shipState !== sellerState);
         
         // Calculate rate (approximate if not provided directly)
         let rate = 0;
@@ -528,10 +555,9 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
             </h1>
             <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Report: <b>{filename}</b> • {rawData.length.toLocaleString()} transactions • {source === 'shopify' ? 'Shopify Export' : source === 'custom' ? 'Custom ERP' : 'Amazon MTR'} Tracker</div>
           </div>
-          <div style={{ textAlign: "right", marginRight: 12 }}>
+          <div style={{ textAlign: "right", marginRight: 12, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: GREEN, marginBottom: 12 }}>● STATUS: SECURE</div>
-            <div style={{ display: "flex", gap: 12 }}>
-
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <button 
                  onClick={generateExcel} 
                  style={{ 
@@ -544,6 +570,97 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
               >
                  <Download size={16} /> Excel Export
               </button>
+              {/* ── User Profile Avatar + Dropdown ── */}
+              {(() => {
+                const userName = sessionStorage.getItem('siq_user_name') || 'User';
+                const userEmail = sessionStorage.getItem('siq_user_email') || '';
+                const userPic = sessionStorage.getItem('siq_user_picture');
+                const planLabel = (activePlan || 'starter').charAt(0).toUpperCase() + (activePlan || 'starter').slice(1);
+                const planColors = { Starter: '#64748b', Pro: '#10b981', Enterprise: '#6366f1' };
+                const planColor = planColors[planLabel] || '#64748b';
+
+                return (
+                  <div id="user-profile-menu" style={{ position: 'relative' }}>
+                    {/* Avatar button */}
+                    <div
+                      onClick={() => setProfileOpen(o => !o)}
+                      style={{
+                        width: 38, height: 38, borderRadius: '50%',
+                        background: userPic ? 'transparent' : BRAND,
+                        border: `2px solid ${profileOpen ? BRAND : '#e2e8f0'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
+                        boxShadow: profileOpen ? `0 0 0 3px ${BRAND}30` : 'none',
+                        transition: 'box-shadow 0.2s, border-color 0.2s'
+                      }}
+                      title={`${userName} — click to open profile`}
+                    >
+                      {userPic
+                        ? <img src={userPic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                        : <span style={{ color: 'white', fontWeight: 800, fontSize: 15 }}>{userName[0].toUpperCase()}</span>
+                      }
+                    </div>
+
+                    {/* Dropdown panel */}
+                    {profileOpen && (
+                      <div style={{
+                        position: 'absolute', top: 'calc(100% + 12px)', right: 0,
+                        width: 260, background: '#fff', borderRadius: 16,
+                        boxShadow: '0 20px 50px -10px rgba(0,0,0,0.18)',
+                        border: '1px solid #e2e8f0', zIndex: 9999,
+                        overflow: 'hidden', animation: 'fadeIn 0.15s ease-out'
+                      }}>
+                        {/* User info header */}
+                        <div style={{ padding: '18px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{
+                            width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                            background: userPic ? 'transparent' : BRAND,
+                            overflow: 'hidden', border: '2px solid #e2e8f0',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            {userPic
+                              ? <img src={userPic} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                              : <span style={{ color: 'white', fontWeight: 800, fontSize: 18 }}>{userName[0].toUpperCase()}</span>
+                            }
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 800, fontSize: 14, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
+                            {userEmail && <div style={{ fontSize: 11, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</div>}
+                          </div>
+                        </div>
+
+                        {/* Plan badge */}
+                        <div style={{ padding: '12px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Active Plan</span>
+                          <span style={{
+                            padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800,
+                            background: `${planColor}18`, color: planColor, border: `1px solid ${planColor}30`
+                          }}>⬡ {planLabel}</span>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ padding: 10 }}>
+                          <button
+                            onClick={() => {
+                              setProfileOpen(false);
+                              if (onLogout) onLogout();
+                            }}
+                            style={{
+                              width: '100%', padding: '10px 14px', borderRadius: 10,
+                              background: '#fef2f2', color: '#ef4444',
+                              border: '1px solid #fecaca', fontWeight: 700, fontSize: 13,
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                            Sign Out
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -1204,10 +1321,39 @@ function AppContent() {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [demoBlockReason, setDemoBlockReason] = useState(null);
   const [ingestion, setIngestion] = useState({ loading: false, msg: "", progress: 0 });
+  // ── Separate ingestion state for demo – never shared with main upload ──────
+  const [demoIngestion, setDemoIngestion] = useState({ loading: false, msg: "", progress: 0 });
   const [planStatus, setPlanStatus] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('siq_plan_status') || 'null'); } catch { return null; }
   });
   const [expiredSession, setExpiredSession] = useState(false);
+  const [prefillData, setPrefillData] = useState(null);
+  const [demoUploadCount, setDemoUploadCount] = useState(() => parseInt(sessionStorage.getItem('siq_demo_used') || '0', 10));
+
+  const handleGoogleSuccess = async (response) => {
+    try {
+      // Instead of logging in immediately, we just want to fetch user info to prefill registration
+      const res = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${response.access_token}`);
+      const userInfo = await res.json();
+      
+      if (userInfo && userInfo.email) {
+        setPrefillData({
+          name: userInfo.name,
+          email: userInfo.email
+        });
+        setLoginView("plans");
+        setShowLanding(false);
+        window.location.hash = 'login';
+      }
+    } catch (e) {
+      alert("Failed to fetch Google profile info.");
+    }
+  };
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: (error) => console.log('Login Failed:', error)
+  });
 
   // ── Plan Expiry Polling ──────────────────────────────────────────────────
   useEffect(() => {
@@ -1217,7 +1363,7 @@ function AppContent() {
       const token = sessionStorage.getItem('siq_auth_token');
       if (!token) return;
       try {
-        const res = await fetch('http://localhost:5000/api/auth/plan-status', {
+        const res = await fetch('/api/v1/auth/plan-status', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) return;
@@ -1271,18 +1417,15 @@ function AppContent() {
     </div>
   ) : null;
 
+  // ── MAIN upload handler (authenticated users only, never demo) ───────────
   const handleFileSelection = async (file) => {
     if (!file || ingestion.loading) return;
     setIngestion({ loading: true, msg: "Initializing engine...", progress: 5 });
-
     try {
       const res = await analyzeReport(file, (pct) => {
         setIngestion(prev => ({ ...prev, progress: Math.max(prev.progress, pct), msg: pct < 100 ? "Syncing data blocks..." : "Analyzing patterns..." }));
       });
-
       setIngestion({ loading: false, msg: "Success", progress: 100 });
-      
-      // Persist state
       setState({ 
         rawData: res.rawData, 
         analysis: res.analysis, 
@@ -1291,11 +1434,41 @@ function AppContent() {
         session_id: res.session_id, 
         fraud: res.analysis?.fraud 
       });
-      
       window.location.hash = 'overview';
     } catch (err) {
       console.error("Ingestion failed:", err);
       setIngestion({ loading: false, msg: err.response?.data?.detail || "Analysis failed. Ensure valid MTR format.", progress: 0 });
+    }
+  };
+
+  // ── DEMO upload handler (guest/demo mode only, fully isolated) ────────────
+  const handleDemoFileSelection = async (file) => {
+    if (!file || demoIngestion.loading) return;
+    // Enforce demo limit: only 1 upload per session
+    if (demoUploadCount >= 1) {
+      setDemoBlockReason('limit_reached');
+      return;
+    }
+    setDemoUploadCount(prev => prev + 1);
+    sessionStorage.setItem('siq_demo_used', '1');
+    setDemoIngestion({ loading: true, msg: "Initializing engine...", progress: 5 });
+    try {
+      const res = await analyzeReport(file, (pct) => {
+        setDemoIngestion(prev => ({ ...prev, progress: Math.max(prev.progress, pct), msg: pct < 100 ? "Syncing data blocks..." : "Analyzing patterns..." }));
+      });
+      setDemoIngestion({ loading: false, msg: "Success", progress: 100 });
+      setState({
+        rawData: res.rawData,
+        analysis: res.analysis,
+        filename: file.name,
+        source: res.source || 'amazon',
+        session_id: res.session_id,
+        fraud: res.analysis?.fraud
+      });
+      window.location.hash = 'overview';
+    } catch (err) {
+      console.error("Demo ingestion failed:", err);
+      setDemoIngestion({ loading: false, msg: err.response?.data?.detail || "Analysis failed. Ensure valid MTR format.", progress: 0 });
     }
   };
 
@@ -1307,15 +1480,20 @@ function AppContent() {
         <p style={{ color: "#94a3b8", marginBottom: 32, lineHeight: 1.6 }}>
           {demoBlockReason === 'timeout' 
             ? "Your 1-minute demo preview has expired." 
-            : "Demo accounts are limited to a single file upload."}
-          <br/><br/>
-          To continue analyzing limitless data, please choose a growth tier.
+            : "Your free credit is over. Please upgrade the plan."}
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <button onClick={() => {
-             sessionStorage.clear();
-             window.location.href = '/?action=get-started#login';
-          }} style={{ padding: "14px 20px", borderRadius: 12, background: BRAND, color: "#fff", fontWeight: 800, border: "none", cursor: "pointer" }}>Continue with Plan</button>
+             googleLogin(); // Triggers the onboarding Google Auth
+          }} style={{ padding: "14px 20px", borderRadius: 12, background: BRAND, color: "#fff", fontWeight: 800, border: "none", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 10 }}>
+            <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            Upgrade Now
+          </button>
           <button onClick={() => {
               if (demoBlockReason === 'timeout') {
                   sessionStorage.clear();
@@ -1324,7 +1502,7 @@ function AppContent() {
                   setDemoBlockReason(null);
               }
           }} style={{ padding: "14px 20px", borderRadius: 12, background: "transparent", color: "#94a3b8", fontWeight: 700, border: "1px solid #334155", cursor: "pointer" }}>
-            {demoBlockReason === 'timeout' ? "Back to Home Page" : "Return to Dashboard"}
+            {demoBlockReason === 'timeout' ? "Back to Home Page" : "Cancel"}
           </button>
         </div>
       </div>
@@ -1356,13 +1534,17 @@ function AppContent() {
          setShowDemoModal(false);
          sessionStorage.clear();
       } else if (hash === 'upload') {
+         // Entering main upload: always exit demo mode and reset demo state
+         setIsDemoMode(false);
+         setDemoIngestion({ loading: false, msg: '', progress: 0 });
          setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null, fraud: null });
       } else if (hash === 'demo') {
-         // Force Pro Mode and Reset State
+         // Entering demo: reset main ingestion so it never bleeds into demo
          setIsDemoMode(true);
          setActivePlan('pro');
          setShowLanding(false);
          setState({ rawData: null, analysis: null, filename: null });
+         setIngestion({ loading: false, msg: '', progress: 0 });
          setShowDemoModal(false);
       }
     };
@@ -1396,9 +1578,7 @@ function AppContent() {
     return (
       <LandingPage
         onGetStarted={() => {
-          setLoginView("plans");
-          setShowLanding(false);
-          window.location.hash = 'login';
+          window.location.hash = 'demo';
         }}
         onTryFree={() => {
           window.location.hash = 'demo';
@@ -1408,6 +1588,7 @@ function AppContent() {
           setShowLanding(false);
           window.location.hash = 'login';
         }}
+        onGoogleSuccess={handleGoogleSuccess}
       />
     );
   }
@@ -1418,6 +1599,7 @@ function AppContent() {
   if (!userRole && !isGuestTryingFree) {
     return <LoginSection
       initialView={expiredSession ? 'expired_redirect' : loginView}
+      prefillData={prefillData}
       onLogin={(role, plan, usageStats, initialPlanStatus) => {
         setUserRole(role || 'user');
         if (plan) setActivePlan(plan);
@@ -1442,8 +1624,9 @@ function AppContent() {
           {expiryBanner}
           <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
             <DemoUpload 
-              onFileSelect={handleFileSelection} 
-              ingestionStatus={ingestion}
+              onFileSelect={handleDemoFileSelection}
+              ingestionStatus={demoIngestion}
+              onLimitHit={() => setDemoBlockReason('limit_reached')}
             />
           </div>
           {demoLimitOverlay}
@@ -1526,12 +1709,26 @@ function AppContent() {
           fraudData={state.fraud}
           isDemoMode={isDemoMode}
           onReset={(fileOrEvent) => {
+            // Signal from Sidebar Quick Upload in demo mode → show upgrade overlay
+            if (fileOrEvent === '__demo_limit__') {
+              setDemoBlockReason('limit_reached');
+              return;
+            }
             if (fileOrEvent instanceof File) {
               return handleFileSelection(fileOrEvent);
             }
             setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null, fraud: null });
             window.location.hash = isDemoMode ? 'demo' : 'upload';
-          }} 
+          }}
+          onLogout={() => {
+            sessionStorage.clear();
+            setUserRole(null);
+            setActivePlan('starter');
+            setIsDemoMode(false);
+            setShowLanding(false);
+            setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null, fraud: null });
+            window.location.hash = 'login';
+          }}
         />
       </div>
       {demoLimitOverlay}
@@ -1540,11 +1737,14 @@ function AppContent() {
 }
 
 export default function App() {
+  const GOOGLE_CLIENT_ID = "505753164861-3s7egj0sp4c2pg8t9r743dpqeq1jib70.apps.googleusercontent.com";
   return (
     <ErrorBoundary>
-      <AppProvider>
-        <AppContent />
-      </AppProvider>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <AppProvider>
+          <AppContent />
+        </AppProvider>
+      </GoogleOAuthProvider>
     </ErrorBoundary>
   );
 }

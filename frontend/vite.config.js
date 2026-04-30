@@ -6,5 +6,20 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  },
+  optimizeDeps: {
+    exclude: ['xlsx-js-style']
+  },
+  build: {
+    rollupOptions: {
+      external: []
+    }
   }
 })

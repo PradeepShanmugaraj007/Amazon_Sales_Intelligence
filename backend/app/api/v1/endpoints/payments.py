@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from app.db.session import get_db
+from app.models.sales import User
 from app.core.config import settings
-from app.services.stateless_memory import stateless_service
 from app.services.email_service import send_email, get_welcome_email_html
 from app.core.security import get_password_hash
 from datetime import datetime, timedelta
@@ -9,6 +12,7 @@ import os
 import razorpay
 import string
 import random
+import uuid
 
 router = APIRouter()
 
@@ -44,60 +48,69 @@ def generate_password(length=10):
 
 @router.post("/create-payment-order")
 async def create_payment_order(req: PaymentRequest):
+    # Dev/test fallback: if Razorpay not configured, return a mock order
     if not rzp_client:
-        raise HTTPException(status_code=500, detail="Razorpay not configured on server")
+        return {
+            "success": True,
+            "order_id": "order_test_" + os.urandom(4).hex(),
+            "key_id": "rzp_test_placeholder",
+            "dev_mode": True
+        }
     try:
         order_amount = req.amount * 100
         order_receipt = "order_rcptid_" + os.urandom(4).hex()
         razorpay_order = rzp_client.order.create(dict(amount=order_amount, currency=req.currency, receipt=order_receipt))
         return {"success": True, "order_id": razorpay_order['id'], "key_id": settings.RZP_KEY_ID}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Razorpay error: {str(e)}")
 
 @router.post("/complete-payment")
-async def complete_payment(req: CompletePaymentRequest):
-    existing = stateless_service.find_user_by_email(req.email)
+async def complete_payment(req: CompletePaymentRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == req.email))
+    existing = result.scalars().first()
+    
     days_to_add = req.billing_cycle * 30
-    expiry_date = (datetime.now() + timedelta(days=days_to_add)).strftime("%Y-%m-%d")
+    expiry_date = datetime.now() + timedelta(days=days_to_add)
 
     if existing:
-        stateless_service.update_user(existing["id"], {
-            "plan": req.plan,
-            "status": "Active",
-            "expiry_date": expiry_date,
-            "payment_id": req.payment_id
-        })
+        existing.plan = req.plan
+        existing.status = "Active"
+        existing.expiry_date = expiry_date
+        existing.payment_id = req.payment_id
+        await db.commit()
+        await db.refresh(existing)
         
         send_email(
             req.email,
             f"SellerIQ Pro – Your {req.plan.title()} Plan is Renewed",
-            get_welcome_email_html(req.name, existing.get("user_id"), "—", req.plan)
+            get_welcome_email_html(req.name, existing.user_id, "—", req.plan)
         )
-        return {"success": True, "user_id": existing.get("user_id"), "message": "Account renewed successfully"}
+        return {"success": True, "user_id": existing.user_id, "message": "Account renewed successfully"}
 
     user_id = generate_user_id()
-    password = generate_password()
-    hashed_password = get_password_hash(password)
     
-    user_data = {
-        "user_id": user_id,
-        "name": req.name,
-        "email": req.email,
-        "phone": req.phone,
-        "plan": req.plan,
-        "password": hashed_password,
-        "payment_id": req.payment_id,
-        "expiry_date": expiry_date,
-        "status": "Active",
-        "monthly_uploads": 0
-    }
-    stateless_service.create_user(user_data)
+    new_user = User(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        name=req.name,
+        email=req.email,
+        phone=req.phone,
+        plan=req.plan,
+        payment_id=req.payment_id,
+        expiry_date=expiry_date,
+        status="Active",
+        monthly_uploads=0,
+        provider="Email"
+    )
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
 
-    # Send welcome email
+    # Send welcome email (dummy password removed)
     sent = send_email(
         req.email,
         f"SellerIQ Pro – Welcome! Your {req.plan.title()} Plan Credentials",
-        get_welcome_email_html(req.name, user_id, password, req.plan)
+        get_welcome_email_html(req.name, user_id, "Use Google OAuth to Login", req.plan)
     )
 
     return {

@@ -112,11 +112,11 @@ header {
   top: 0;
   left: 0;
   width: 100%;
-  padding: 2.5rem 4rem;
+  padding: 1.2rem 4rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  z-index: 2000; /* Extremely high to stay above glass cards */
+  z-index: 2000;
   transition: var(--transition);
 }
 
@@ -129,11 +129,51 @@ header.scrolled {
 }
 
 .logo {
-  font-size: 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.logo-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.logo-wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.logo-name {
+  font-size: 1.05rem;
   font-weight: 800;
-  letter-spacing: -1.5px;
+  letter-spacing: -0.5px;
   color: var(--text-main);
-  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.logo-name span {
+  color: var(--primary);
+}
+
+.logo-tagline {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.auth-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 nav ul {
@@ -216,7 +256,7 @@ nav a:hover {
 
 /* Hero Section */
 .hero {
-  padding: 5rem 4rem 6rem;
+  padding: 9rem 4rem 6rem;
   display: grid;
   grid-template-columns: 1.1fr 1fr;
   gap: 3rem;
@@ -226,11 +266,11 @@ nav a:hover {
 }
 
 .hero-content h1 {
-  font-size: 6rem;
-  line-height: 0.95;
+  font-size: 4rem;
+  line-height: 1.0;
   font-weight: 900;
-  margin-bottom: 2rem;
-  letter-spacing: -5px;
+  margin-bottom: 1.5rem;
+  letter-spacing: -3px;
   background: linear-gradient(to bottom right, var(--text-main) 30%, var(--primary), var(--accent));
   -webkit-background-clip: text;
   background-clip: text;
@@ -239,11 +279,11 @@ nav a:hover {
 }
 
 .hero-content p {
-  font-size: 1.35rem;
+  font-size: 1.1rem;
   color: var(--text-dim);
-  margin-bottom: 3rem;
-  max-width: 580px;
-  line-height: 1.5;
+  margin-bottom: 2.5rem;
+  max-width: 520px;
+  line-height: 1.6;
   font-weight: 500;
 }
 

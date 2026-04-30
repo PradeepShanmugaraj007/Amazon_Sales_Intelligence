@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base_class import Base
@@ -7,12 +7,20 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(String, primary_key=True, index=True) # UUID
+    user_id = Column(String, unique=True, index=True) # SIQ-xxxx format
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String)
+    phone = Column(String, nullable=True)
     plan = Column(String, default="starter")
+    status = Column(String, default="Active")
     monthly_uploads = Column(Integer, default=0)
     last_reset_month = Column(String)
     joined = Column(DateTime, default=datetime.utcnow)
+    expiry_date = Column(DateTime, nullable=True)
+    payment_id = Column(String, nullable=True)
+    is_admin = Column(Boolean, default=False)
+    provider = Column(String, nullable=True)
+    picture = Column(String, nullable=True)
     
     reports = relationship("Report", back_populates="owner")
 

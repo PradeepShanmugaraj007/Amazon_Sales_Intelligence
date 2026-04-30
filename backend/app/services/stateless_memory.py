@@ -47,7 +47,7 @@ class StatelessService:
             "id": "demo-enterprise-id",
             "user_id": "SIQ-DEMO3",
             "name": "Ajay Demo (Enterprise)",
-            "email": "aajay1118@gmail.com",
+            "email": "aajay1118+enterprise@gmail.com",
             "phone": "9000000003",
             "plan": "enterprise",
             "status": "Active",

@@ -31,6 +31,7 @@ import {
   Play
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useGoogleLogin } from '@react-oauth/google';
 import { analyzeReport } from '../api';
 import { processData, fmt, BRAND, GREEN } from '../utils';
 import '../landing.css';
@@ -40,8 +41,15 @@ interface LandingPageProps {
   onGetStarted: () => void;
   onTryFree: () => void;
   onLogin: () => void;
+  onGoogleSuccess?: (response: any) => void;
 }
-export default function LandingPage({ onGetStarted, onTryFree, onLogin }: LandingPageProps) {
+export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogleSuccess }: LandingPageProps) {
+  const googleLogin = useGoogleLogin({
+    onSuccess: (codeResponse) => {
+      if (onGoogleSuccess) onGoogleSuccess(codeResponse);
+    },
+    onError: (error) => console.log('Login Failed:', error)
+  });
   const [demoText, setDemoText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
   const [msg, setMsg] = useState('');
@@ -211,7 +219,13 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin }: Landin
       </div>
 
       <header>
-        <div className="logo">SellerIQ Pro</div>
+        <div className="logo">
+          <img src="/selleriq-icon.png" alt="SellerIQ Pro Icon" className="logo-icon" />
+          <div className="logo-wordmark">
+            <div className="logo-name">SellerIQ <span>Pro</span></div>
+            <div className="logo-tagline">Commerce Intelligence</div>
+          </div>
+        </div>
         <nav>
           <ul>
             <li><a href="#features">Features</a></li>

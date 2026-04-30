@@ -21,7 +21,7 @@ const AdminPanel = ({ onLogout }) => {
 
   useEffect(() => {
     if (adminTab === "hub" || adminTab === "billing" || adminTab === "monitoring") {
-      fetch('http://localhost:5000/api/admin/users')
+      fetch('/api/v1/admin/users')
         .then(r => r.json())
         .then(d => { if (d.success) setRegisteredUsers(d.users); })
         .catch(() => {});
@@ -29,11 +29,8 @@ const AdminPanel = ({ onLogout }) => {
   }, [adminTab]);
 
   const ALL_USERS = useMemo(() => {
-    if (registeredUsers.length > 0) return registeredUsers;
-    return [
-      { user_id: "DEMO-001", name: "Acme Corp Ltd.", email: "admin@acmecorp.com", phone: "+91 98765 43210", plan: "enterprise", status: "Active", joined: "2026-01-15 09:00", lastLogin: "10 mins ago" },
-      { user_id: "DEMO-002", name: "Starlite Retailers", email: "contact@starlite.in", phone: "+91 87654 32109", plan: "pro", status: "Active", joined: "2026-02-20 14:30", lastLogin: "2 hours ago" },
-    ];
+    // Only show real registered paying clients — no demo fallback
+    return registeredUsers;
   }, [registeredUsers]);
 
   const filteredUsers = useMemo(() => {
@@ -257,31 +254,49 @@ const AdminPanel = ({ onLogout }) => {
               </div>
 
               <div style={{ overflowX: "auto" }}>
+                {filteredUsers.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>👥</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>No Registered Clients Yet</div>
+                    <div style={{ fontSize: 14, color: '#64748b', maxWidth: 360, margin: '0 auto' }}>
+                      Clients who subscribe via the landing page (Google OAuth or email/payment) will appear here automatically.
+                    </div>
+                  </div>
+                ) : (
                 <table className="admin-table">
                   <thead>
-                    <tr><th>User</th><th>User ID</th><th>Phone</th><th>Plan</th><th>Joined</th><th>Status</th></tr>
+                    <tr><th>User</th><th>User ID</th><th>Phone</th><th>Plan</th><th>Provider</th><th>Joined</th><th>Status</th></tr>
                   </thead>
                   <tbody>
                     {filteredUsers.map((u, i) => (
                       <tr key={u.user_id || i}>
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div className="user-avatar">{u.name?.charAt(0)}</div>
+                            <div className="user-avatar" style={{ background: u.provider === 'Google' ? '#fef3c7' : '#e0e7ff', color: u.provider === 'Google' ? '#d97706' : '#4f46e5' }}>
+                              {u.name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
                             <div>
-                              <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 13 }}>{u.name}</div>
+                              <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 13 }}>{u.name || '—'}</div>
                               <div style={{ fontSize: 11, color: "#64748b" }}>{u.email}</div>
                             </div>
                           </div>
                         </td>
                         <td style={{ fontFamily: "monospace", color: "#3b82f6", fontWeight: 700 }}>{u.user_id}</td>
-                        <td style={{ fontSize: 13 }}><Phone size={12} style={{ marginRight: 4 }} /> {u.phone}</td>
+                        <td style={{ fontSize: 13 }}>{u.phone || '—'}</td>
                         <td>{getPlanIcon(u.plan)} {capitalize(u.plan)}</td>
+                        <td>
+                          {u.provider === 'Google'
+                            ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800, background: '#fef9c3', color: '#a16207', border: '1px solid #fde68a' }}>🔵 Google</span>
+                            : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800, background: '#e0e7ff', color: '#4338ca', border: '1px solid #c7d2fe' }}>✉ Email</span>
+                          }
+                        </td>
                         <td style={{ fontSize: 12, color: "#64748b" }}>{u.joined?.split(' ')[0]}</td>
                         <td>{getStatusBadge(u.status)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                )}
               </div>
             </div>
           </>
@@ -298,7 +313,7 @@ const AdminPanel = ({ onLogout }) => {
                 onClick={async () => {
                    setIsLoading(true);
                    try {
-                     const res = await fetch('http://localhost:5000/api/admin/send-expiry-warnings', { method: 'POST' });
+                     const res = await fetch('/api/admin/send-expiry-warnings', { method: 'POST' });
                      const data = await res.json();
                      setToast(`Successfully sent ${data.emails_sent} warning emails.`);
                    } catch {

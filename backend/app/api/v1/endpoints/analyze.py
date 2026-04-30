@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 router = APIRouter()
 
-@router.post("/")
+@router.post("")
 async def analyze_report(
     files: List[UploadFile] = File(...),
     user_data: dict = Depends(get_current_user)

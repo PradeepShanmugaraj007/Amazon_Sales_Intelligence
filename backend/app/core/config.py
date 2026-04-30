@@ -1,11 +1,14 @@
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+# Always resolve .env relative to this file: backend/.env
+_env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 class Settings:
     PROJECT_NAME: str = "SellerIQ Pro"
-    API_V1_STR: str = "/api"
+    API_V1_STR: str = "/api/v1"
     
     JWT_SECRET: str = os.getenv("JWT_SECRET", "super-secret-siq-key-2026-amazon-intelligence-secure")
     ALGORITHM: str = "HS256"
@@ -24,5 +27,6 @@ class Settings:
     SMTP_USER: str = os.getenv("SMTP_USER", "")
     SMTP_PASS: str = os.getenv("SMTP_PASS", "")
     SALES_EMAIL: str = os.getenv("SALES_EMAIL", SMTP_USER)
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
 
 settings = Settings()

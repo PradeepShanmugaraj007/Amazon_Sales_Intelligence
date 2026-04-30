@@ -2,25 +2,39 @@ import React, { useState } from "react";
 import { analyzeReport } from "../api";
 import { UploadCloud, Cpu, Activity, Play } from "lucide-react";
 
-const DemoUpload = ({ onFileSelect, ingestionStatus }) => {
+const DemoUpload = ({ onFileSelect, ingestionStatus, onLimitHit }) => {
   const [drag, setDrag] = useState(false);
   const loading = ingestionStatus?.loading || false;
   const msg = ingestionStatus?.msg || "";
   const migrationStatus = ingestionStatus?.progress || 0;
 
+  // Check if demo credit is already exhausted before any interaction
+  const isDemoExhausted = () => parseInt(sessionStorage.getItem('siq_demo_used') || '0', 10) >= 1;
+
   const handleFileLocal = async (file) => {
     if (!file || loading) return;
-
+    // Block if demo already used
+    if (isDemoExhausted()) {
+      if (onLimitHit) onLimitHit();
+      return;
+    }
     // Demo enforces 5MB limit unconditionally
     if (file.size > 5 * 1024 * 1024) {
       alert(`Demo Trial limit exceeded (5MB). Subscription required for larger datasets.`);
       return;
     }
-
     // Reset input so same file can be selected twice if needed
     try { if (document.getElementById("demoFileInput")) document.getElementById("demoFileInput").value = ""; } catch(e) {}
-    
     onFileSelect(file);
+  };
+
+  const handleZoneClick = () => {
+    if (loading) return;
+    if (isDemoExhausted()) {
+      if (onLimitHit) onLimitHit();
+      return;
+    }
+    document.getElementById("demoFileInput").click();
   };
 
   return (
@@ -89,7 +103,7 @@ const DemoUpload = ({ onFileSelect, ingestionStatus }) => {
           onDragOver={e => { e.preventDefault(); setDrag(true); }}
           onDragLeave={() => setDrag(false)}
           onDrop={e => { e.preventDefault(); setDrag(false); handleFileLocal(e.dataTransfer.files[0]); }}
-          onClick={() => !loading && document.getElementById("demoFileInput").click()}
+          onClick={handleZoneClick}
         >
           <div style={{ 
             width: 72, height: 72, margin: '0 auto 24px', borderRadius: '50%', 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ShieldCheck, Lock, User, ArrowRight, BarChart2, TrendingUp, CheckCircle, CreditCard, Key, Briefcase, Phone, Mail, RotateCcw, AlertTriangle, MapPin } from "lucide-react";
+import { ShieldCheck, Lock, User, ArrowRight, BarChart2, TrendingUp, CheckCircle, CreditCard, Key, Briefcase, Phone, Mail, RotateCcw, AlertTriangle, MapPin, ChevronDown } from "lucide-react";
+import { GoogleLogin } from '@react-oauth/google';
 const loadRazorpay = () => new Promise((resolve) => {
   const script = document.createElement("script");
   script.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -9,12 +10,12 @@ const loadRazorpay = () => new Promise((resolve) => {
 });
 
 const SaaS_PLANS = [
-  { id: 'starter', name: 'Starter', prices: { 1: 300, 12: 3060, 24: 5400, 48: 8640 }, features: ['3 files per month', 'Up to 5,000 orders', 'Email Support', 'Basic Analytics'] },
-  { id: 'pro', name: 'Pro', prices: { 1: 1500, 12: 15300, 24: 27000, 48: 43200 }, recommended: true, features: ['10 files per month', 'Up to 25,000 orders', '24/7 Priority Support', 'AI Fraud Detection', 'Predictive Forecasting'] },
-  { id: 'enterprise', name: 'Enterprise', prices: { 1: 4999, 12: 50989, 24: 89982, 48: 143971 }, features: ['30 files per month', 'Unlimited orders', '24/7 Call Support', 'Full API Access', 'Custom Integrations'] }
+  { id: 'starter', name: 'Starter', prices: { 1: 299, 12: 3050, 24: 5382, 48: 8611 }, features: ['3 files per month', 'Up to 5,000 orders', 'Email Support', 'Basic Analytics'] },
+  { id: 'pro', name: 'Pro', prices: { 1: 649, 12: 6620, 24: 11682, 48: 18691 }, recommended: true, features: ['10 files per month', 'Up to 25,000 orders', '24/7 Priority Support', 'AI Fraud Detection', 'Predictive Forecasting'] },
+  { id: 'enterprise', name: 'Enterprise', prices: { 1: 1499, 12: 15290, 24: 26982, 48: 43171 }, features: ['30 files per month', 'Unlimited orders', '24/7 Call Support', 'Full API Access', 'Custom Integrations'] }
 ];
 
-const LoginSection = ({ onLogin, initialView = "plans" }) => {
+const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) => {
   // 'expired_redirect' means the dashboard pushed the user out due to plan expiry
   const resolvedInitialView = initialView === 'expired_redirect' ? 'user_login' : initialView;
   const [view, setView] = useState(resolvedInitialView);
@@ -26,13 +27,13 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
   const [err, setErr] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [msg, setMsg] = useState("");
-  const [billingCycle, setBillingCycle] = useState(12);
+  const [billingCycle, setBillingCycle] = useState(1);
 
   // Prefill form state
   const [prefillPlan, setPrefillPlan] = useState(null);
-  const [buyerName, setBuyerName] = useState("");
+  const [buyerName, setBuyerName] = useState(prefillData?.name || "");
   const [buyerPhone, setBuyerPhone] = useState("");
-  const [buyerEmail, setBuyerEmail] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState(prefillData?.email || "");
   const [prefillErr, setPrefillErr] = useState("");
 
   // Payment success state
@@ -51,12 +52,19 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
     setPrefillErr("");
   };
 
+  React.useEffect(() => {
+    if (prefillData) {
+      if (prefillData.name) setBuyerName(prefillData.name);
+      if (prefillData.email) setBuyerEmail(prefillData.email);
+    }
+  }, [prefillData]);
+
   // ── Step 1: Choose plan → show prefill form ──────────────────────────────
   const handleSelectPlan = (plan) => {
     setPrefillPlan(plan);
-    setBuyerName("");
+    setBuyerName(prefillData?.name || "");
     setBuyerPhone("");
-    setBuyerEmail("");
+    setBuyerEmail(prefillData?.email || "");
     setPrefillErr("");
     setView("prefill");
   };
@@ -83,7 +91,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/payments/create-payment-order', {
+      const response = await fetch('/api/v1/payments/create-payment-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: totalAmount, currency: "INR" })
@@ -112,7 +120,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
         handler: async function (rzpResponse) {
           // Step 3: Call backend to create user & send email
           try {
-            const completeRes = await fetch('http://localhost:5000/api/payments/complete-payment', {
+            const completeRes = await fetch('/api/v1/payments/complete-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -159,7 +167,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
     setIsLoading(true);
     setErr("");
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
+      const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user, password: pass })
@@ -222,7 +230,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
     setIsLoading(true);
     setErr("");
     try {
-      const res = await fetch('http://localhost:5000/api/auth/forgot-password', {
+      const res = await fetch('/api/v1/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail })
@@ -239,6 +247,75 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
       setIsLoading(false);
     }
   };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setIsLoading(true);
+    setErr("");
+    try {
+      const res = await fetch('/api/v1/auth/google-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: credentialResponse.credential })
+      });
+      const data = await res.json();
+
+      if (res.status === 402 && data.detail === "PLAN_EXPIRED") {
+        setIsLoading(false);
+        setSuccessData({
+          name: data.name,
+          email: data.email,
+          plan: data.plan,
+          expiry: data.expiry_date
+        });
+        setView("expired");
+        return;
+      }
+
+      if (!res.ok) {
+        setErr(data.detail || "Google login failed.");
+        setIsLoading(false);
+        return;
+      }
+
+      sessionStorage.setItem("siq_auth_token", data.access_token);
+      sessionStorage.setItem("siq_user_name", data.user.name);
+      if (data.user.picture) sessionStorage.setItem("siq_user_picture", data.user.picture);
+      sessionStorage.setItem("siq_plan_expiry", data.user.plan_expiry || "");
+      sessionStorage.setItem("siq_plan_status", JSON.stringify(data.plan_status || {}));
+      localStorage.setItem("userEmail", data.user.email);
+      setMsg("Welcome, " + data.user.name + "!");
+      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats, data.plan_status), 800);
+    } catch (e) {
+      setErr("Google authentication failed. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setErr("Google Login was unsuccessful. Try again.");
+  };
+
+  const handleGooglePrefill = async (credentialResponse) => {
+    try {
+      const res = await fetch('/api/v1/auth/google-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: credentialResponse.credential })
+      });
+      const data = await res.json();
+      
+      if (data.user) {
+        setBuyerName(data.user.name);
+        setBuyerEmail(data.user.email);
+        setMsg(`Details imported from Google for ${data.user.email}`);
+        setTimeout(() => setMsg(""), 3000);
+      }
+    } catch (e) {
+      setPrefillErr("Failed to fetch details from Google.");
+    }
+  };
+
+  const GOOGLE_CLIENT_ID = "505753164861-3s7egj0sp4c2pg8t9r743dpqeq1jib70.apps.googleusercontent.com"; // Replace with your actual Client ID
 
   return (
     <>
@@ -266,7 +343,13 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
         }
         .auth-container.expanded { max-width: 1300px; }
 
-        .auth-left { flex: 1.3; padding: 80px 60px; display: flex; flex-direction: column; justify-content: center; position: relative; }
+        .auth-left { flex: 1.3; padding: 60px 60px 60px 60px; display: flex; flex-direction: column; justify-content: center; position: relative; }
+        .auth-logo { display: flex; align-items: center; gap: 10px; position: absolute; top: 28px; left: 36px; }
+        .auth-logo-icon { width: 34px; height: 34px; border-radius: 9px; object-fit: contain; flex-shrink: 0; }
+        .auth-logo-wordmark { display: flex; flex-direction: column; line-height: 1; }
+        .auth-logo-name { font-size: 1rem; font-weight: 800; letter-spacing: -0.4px; color: #fff; }
+        .auth-logo-name span { color: #60a5fa; }
+        .auth-logo-tagline { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-top: 2px; }
         .auth-right { flex: 1; min-width: 440px; background: rgba(0, 0, 0, 0.3); padding: 80px 60px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); }
         .auth-right.expanded-view { flex: 2; padding: 60px 40px; min-width: auto; }
 
@@ -342,28 +425,37 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
         <div className={`auth-container ${view === "plans" || view === "prefill" ? 'expanded' : ''}`}>
           {/* LEFT: Branding panel */}
           <div className="auth-left">
+            {/* Top-left Logo — matches landing page style */}
+            <div className="auth-logo">
+              <img src="/selleriq-icon.png" alt="SellerIQ Pro" className="auth-logo-icon" />
+              <div className="auth-logo-wordmark">
+                <div className="auth-logo-name">SellerIQ <span>Pro</span></div>
+                <div className="auth-logo-tagline">Commerce Intelligence</div>
+              </div>
+            </div>
+
             <div className="brand-badge">
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#60a5fa", boxShadow: "0 0 10px #60a5fa" }}></span>
               SELLERIQ ENTERPRISE
             </div>
-            <h1 style={{ color: "#fff", fontSize: 52, fontWeight: 900, marginBottom: 20, lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+            <h1 style={{ color: "#fff", fontSize: 36, fontWeight: 800, marginBottom: 14, lineHeight: 1.15, letterSpacing: "-0.02em" }}>
               SellerIQ<span style={{ color: "#60a5fa" }}>Pro</span>
             </h1>
-            <p style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: 18, marginBottom: 56, maxWidth: 420, lineHeight: 1.6, fontWeight: 400 }}>
+            <p style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: 14, marginBottom: 40, maxWidth: 380, lineHeight: 1.65, fontWeight: 400 }}>
               The definitive intelligence platform giving e-commerce brands absolute clarity over their sales, risk, and growth.
             </p>
             <div>
               <div className="feature-item">
-                <div className="feature-icon-wrapper"><BarChart2 size={26} color="#60a5fa" /></div>
-                <div><div style={{ fontWeight: 800, color: "#fff", fontSize: 16, marginBottom: 4 }}>Real-time Intelligence</div><div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>Deep insights into overall sales performance.</div></div>
+                <div className="feature-icon-wrapper"><BarChart2 size={22} color="#60a5fa" /></div>
+                <div><div style={{ fontWeight: 700, color: "#fff", fontSize: 14, marginBottom: 3 }}>Real-time Intelligence</div><div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Deep insights into overall sales performance.</div></div>
               </div>
               <div className="feature-item">
-                <div className="feature-icon-wrapper"><ShieldCheck size={26} color="#fbbf24" /></div>
-                <div><div style={{ fontWeight: 800, color: "#fff", fontSize: 16, marginBottom: 4 }}>Predictive Fraud Defense</div><div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>Identify high-risk return offenders instantly.</div></div>
+                <div className="feature-icon-wrapper"><ShieldCheck size={22} color="#fbbf24" /></div>
+                <div><div style={{ fontWeight: 700, color: "#fff", fontSize: 14, marginBottom: 3 }}>Predictive Fraud Defense</div><div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Identify high-risk return offenders instantly.</div></div>
               </div>
               <div className="feature-item">
-                <div className="feature-icon-wrapper"><TrendingUp size={26} color="#34d399" /></div>
-                <div><div style={{ fontWeight: 800, color: "#fff", fontSize: 16, marginBottom: 4 }}>Algorithmic Forecasting</div><div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>Data-driven revenue and trajectory models.</div></div>
+                <div className="feature-icon-wrapper"><TrendingUp size={22} color="#34d399" /></div>
+                <div><div style={{ fontWeight: 700, color: "#fff", fontSize: 14, marginBottom: 3 }}>Algorithmic Forecasting</div><div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Data-driven revenue and trajectory models.</div></div>
               </div>
             </div>
           </div>
@@ -378,16 +470,6 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
                   <h2 style={{ color: "#fff", fontSize: 28, fontWeight: 800, margin: "0 0 10px" }}>Select a SaaS Plan</h2>
                   <p style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: 15, margin: 0 }}>Initialize your workspace by activating your subscription.</p>
                   
-                  <div style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: 4, borderRadius: 100, border: '1px solid rgba(255,255,255,0.1)', marginTop: 24, gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    {[1, 12, 24, 48].map(cycle => (
-                      <button key={cycle} onClick={() => setBillingCycle(cycle)} style={{ padding: '8px 20px', borderRadius: 100, border: 'none', background: billingCycle === cycle ? '#3b82f6' : 'transparent', color: billingCycle === cycle ? '#fff' : '#94a3b8', fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.3s' }}>
-                        {cycle === 1 ? '1 Month' : `${cycle} Months`}
-                        {cycle === 12 && <span style={{ color: billingCycle === 12 ? '#bfdbfe' : '#34d399', fontSize: 11, marginLeft: 6 }}>Save 15%</span>}
-                        {cycle === 24 && <span style={{ color: billingCycle === 24 ? '#bfdbfe' : '#f59e0b', fontSize: 11, marginLeft: 6 }}>Save 25%</span>}
-                        {cycle === 48 && <span style={{ color: billingCycle === 48 ? '#bfdbfe' : '#f43f5e', fontSize: 11, marginLeft: 6 }}>Save 40%</span>}
-                      </button>
-                    ))}
-                  </div>
                 </div>
                 <div className="plans-grid">
                   {SaaS_PLANS.map(basePlan => {
@@ -420,7 +502,7 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
                       <button
                         onClick={async () => {
                           try {
-                            const res = await fetch('http://localhost:5000/api/auth/bypass-login', {
+                            const res = await fetch('/api/auth/bypass-login', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ plan: plan.id })
@@ -460,111 +542,226 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
               </>
             )}
 
-            {/* ── PREFILL FORM ── */}
+            {/* ── PREFILL FORM (Hostinger-style checkout) ── */}
             {view === "prefill" && prefillPlan && (() => {
               const basePrice = prefillPlan.prices ? prefillPlan.prices[billingCycle] : prefillPlan.price;
-              const standardPrice = prefillPlan.prices ? prefillPlan.prices[1] * billingCycle : basePrice;
+              const monthlyRate = Math.round(basePrice / billingCycle);
+              const standardMonthlyRate = prefillPlan.prices ? prefillPlan.prices[1] : basePrice;
+              const standardPrice = standardMonthlyRate * billingCycle;
               const discountPct = billingCycle === 12 ? 15 : billingCycle === 24 ? 25 : billingCycle === 48 ? 40 : 0;
               const amountSaved = standardPrice - basePrice;
               const gstAmount = Math.round(basePrice * 0.18);
               const totalAmount = basePrice + gstAmount;
-              const planLabel = billingCycle === 1 ? '/ mo' : `/ ${billingCycle} mo`;
+              const standardTotal = standardPrice + Math.round(standardPrice * 0.18);
+
+              const planIcons = { starter: '📊', pro: '🚀', enterprise: '🏢' };
+              const planIcon = planIcons[prefillPlan.id] || '📦';
 
               return (
-              <div style={{ animation: "slideIn 0.3s ease-out", display: 'flex', gap: 60, width: '100%' }}>
-                {/* LEFT: Billing Details */}
-                <div style={{ flex: 1.2, display: 'flex', flexDirection: 'column' }}>
-                  <button onClick={() => resetForm("plans")} className="text-btn" style={{ color: "rgba(255,255,255,0.5)", marginBottom: 24, alignSelf: 'flex-start' }}>
-                    <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Back to Plans
+              <div style={{ animation: "slideIn 0.3s ease-out", display: 'flex', gap: 40, width: '100%', alignItems: 'flex-start' }}>
+
+                {/* ── LEFT: Your Cart + Billing Form ── */}
+                <div style={{ flex: 1.4, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  
+                  {/* Back link */}
+                  <button onClick={() => resetForm("plans")} className="text-btn" style={{ color: "rgba(255,255,255,0.5)", alignSelf: 'flex-start', padding: 0 }}>
+                    <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Your cart
                   </button>
-                  <h2 style={{ color: "#fff", fontSize: 26, fontWeight: 800, margin: "0 0 8px" }}>Billing Address</h2>
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: '0 0 32px' }}>We'll send your login credentials to your email after payment.</p>
-                  
-                  <div style={{ display: 'inline-block', padding: '6px 20px', background: 'rgba(59,130,246,0.1)', borderRadius: 100, color: '#93c5fd', fontSize: 13, fontWeight: 800, marginBottom: 24, border: '1px solid rgba(59,130,246,0.3)', alignSelf: 'flex-start' }}>
-                    {prefillPlan.name.toUpperCase()} PLAN · ₹{basePrice.toLocaleString('en-IN')} {planLabel}
+
+                  {/* ── Plan Card (Hostinger style) ── */}
+                  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '24px 28px' }}>
+                    
+                    {/* Plan header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{planIcon}</div>
+                      <div>
+                        <div style={{ color: '#fff', fontSize: 17, fontWeight: 800 }}>{prefillPlan.name} plan</div>
+                        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>SellerIQ Pro Subscription</div>
+                      </div>
+                    </div>
+
+                    {/* Period selector row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Period</label>
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <select
+                            value={billingCycle}
+                            onChange={(e) => setBillingCycle(Number(e.target.value))}
+                            style={{ appearance: 'none', WebkitAppearance: 'none', background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', padding: '10px 40px 10px 16px', borderRadius: 10, fontSize: 15, fontWeight: 600, outline: 'none', cursor: 'pointer', minWidth: 160 }}
+                          >
+                            <option value={1} style={{ background: '#0f172a' }}>1 month</option>
+                            <option value={12} style={{ background: '#0f172a' }}>12 months</option>
+                            <option value={24} style={{ background: '#0f172a' }}>24 months</option>
+                            <option value={48} style={{ background: '#0f172a' }}>48 months</option>
+                          </select>
+                          <ChevronDown size={16} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }} />
+                        </div>
+                      </div>
+
+                      {/* Price per month + savings */}
+                      <div style={{ textAlign: 'right' }}>
+                        {discountPct > 0 && (
+                          <div style={{ display: 'inline-block', background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399', fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 20, marginBottom: 6 }}>
+                            Save ₹{amountSaved.toLocaleString('en-IN')}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, justifyContent: 'flex-end' }}>
+                          <span style={{ color: '#fff', fontSize: 26, fontWeight: 900 }}>₹{monthlyRate.toLocaleString('en-IN')}<span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.5)' }}>/mo</span></span>
+                          {discountPct > 0 && <span style={{ textDecoration: 'line-through', color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>₹{standardMonthlyRate.toLocaleString('en-IN')}/mo</span>}
+                        </div>
+                        <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, marginTop: 4 }}>
+                          Renews at ₹{standardMonthlyRate.toLocaleString('en-IN')}/mo. Cancel anytime.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Promo banner */}
+                    {billingCycle < 48 && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginTop: 20, background: 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 12, padding: '14px 18px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(99,102,241,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>%</div>
+                          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+                            Switch to a <strong>48-month subscription</strong> for the <strong>biggest savings</strong>. Save up to 40% on your plan.
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setBillingCycle(48)}
+                          style={{ flexShrink: 0, background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          Get deal
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Perks notice */}
+                    {billingCycle >= 12 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, color: '#34d399', fontSize: 13 }}>
+                        <CheckCircle size={15} style={{ flexShrink: 0 }} />
+                        {billingCycle === 48
+                          ? 'Great news! Setup fee waived + Priority onboarding included with this order.'
+                          : 'Great news! Setup fee waived with this order.'}
+                      </div>
+                    )}
                   </div>
-                  
-                  <form onSubmit={handlePrefillSubmit}>
-                    <div className="input-group">
-                      <User size={20} className="input-icon" />
-                      <input type="text" className="custom-input" placeholder="Name on Card / Full Name" value={buyerName} onChange={e => setBuyerName(e.target.value)} required />
+
+                  {/* ── Billing Details Form ── */}
+                  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '24px 28px' }}>
+                    <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 800, margin: '0 0 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <User size={18} color="#6366f1" /> Billing Details
+                    </h3>
+                    <form onSubmit={handlePrefillSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      <div className="input-group">
+                        <User size={20} className="input-icon" />
+                        <input type="text" className="custom-input" placeholder="Full Name" value={buyerName} onChange={e => setBuyerName(e.target.value)} required />
+                      </div>
+                      <div className="input-group">
+                        <Phone size={20} className="input-icon" />
+                        <input type="tel" className="custom-input" placeholder="Mobile Number (10 digits)" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} required />
+                      </div>
+                      <div className="input-group">
+                        <Mail size={20} className="input-icon" />
+                        <input type="email" className="custom-input" placeholder="Email Address" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} required />
+                      </div>
+                      <div className="input-group" style={{ marginBottom: 0 }}>
+                        <MapPin size={20} className="input-icon" />
+                        <input type="text" className="custom-input" placeholder="Billing Address (Optional)" />
+                      </div>
+                      {prefillErr && <div className="err-box" style={{ marginTop: 16 }}>{prefillErr}</div>}
+                    </form>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0 16px', gap: 16 }}>
+                      <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}></div>
+                      <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11, fontWeight: 700 }}>OR AUTO-FILL WITH</span>
+                      <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}></div>
                     </div>
-                    <div className="input-group">
-                      <Phone size={20} className="input-icon" />
-                      <input type="tel" className="custom-input" placeholder="Mobile Number (10 digits)" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} required />
+
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <GoogleLogin
+                        onSuccess={handleGooglePrefill}
+                        onError={handleGoogleError}
+                        theme="outline"
+                        shape="pill"
+                        text="signup_with"
+                        width="100%"
+                      />
                     </div>
-                    <div className="input-group">
-                      <Mail size={20} className="input-icon" />
-                      <input type="email" className="custom-input" placeholder="Email Address" value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} required />
-                    </div>
-                    <div className="input-group">
-                      <MapPin size={20} className="input-icon" />
-                      <input type="text" className="custom-input" placeholder="Billing Address (Optional)" />
-                    </div>
-                    {prefillErr && <div className="err-box">{prefillErr}</div>}
-                    <button type="submit" className="auth-btn" disabled={isLoading} style={{ marginTop: 24, background: '#6366f1' }}>
-                      {isLoading ? "Opening Checkout..." : `Submit Payment ₹${totalAmount.toLocaleString('en-IN')}`}
-                    </button>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.4)', fontSize: 12, justifyContent: 'center', marginTop: 16 }}>
-                      <ShieldCheck size={14} /> Encrypted and secure payments
-                    </div>
-                  </form>
+                  </div>
                 </div>
 
-                {/* RIGHT: Order Summary */}
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, padding: 32, display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ color: '#fff', fontSize: 20, fontWeight: 800, margin: '0 0 24px' }}>Order summary</h3>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 15, fontWeight: 600 }}>{prefillPlan.name} plan</span>
-                    <span style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>₹{standardPrice.toLocaleString('en-IN')}</span>
-                  </div>
-                  
-                  {billingCycle > 1 && amountSaved > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                      <span style={{ color: '#34d399', fontSize: 14, fontWeight: 600 }}>Discount ({discountPct}%)</span>
-                      <span style={{ color: '#34d399', fontSize: 14, fontWeight: 700 }}>-₹{amountSaved.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
+                {/* ── RIGHT: Order Summary ── */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, position: 'sticky', top: 20 }}>
+                  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '28px' }}>
+                    <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 20px' }}>Order summary</h3>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Billing period</span>
-                    <select 
-                      value={billingCycle} 
-                      onChange={(e) => setBillingCycle(Number(e.target.value))}
-                      style={{ background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: 8, fontSize: 14, outline: 'none', cursor: 'pointer' }}
+                    {/* Plan + period line */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>{prefillPlan.name} plan</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{billingCycle === 1 ? '1-month period' : `${billingCycle}-month period`}</span>
+                        <div style={{ textAlign: 'right' }}>
+                          {discountPct > 0 && <div style={{ textDecoration: 'line-through', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>₹{standardPrice.toLocaleString('en-IN')}</div>}
+                          <div style={{ color: '#fff', fontWeight: 800, fontSize: 14 }}>₹{basePrice.toLocaleString('en-IN')}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Setup fee */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Enterprise setup fee</span>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span style={{ textDecoration: 'line-through', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>₹1,500</span>
+                        <span style={{ color: '#34d399', fontSize: 13, fontWeight: 700 }}>₹0</span>
+                      </div>
+                    </div>
+
+                    {/* Taxes */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 14, marginTop: 6, borderTop: '1px dashed rgba(255,255,255,0.08)', marginBottom: 14 }}>
+                      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, borderBottom: '1px dotted rgba(255,255,255,0.3)', cursor: 'help' }} title="18% GST applicable on all plans">Taxes ⓘ</span>
+                      <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>₹{gstAmount.toLocaleString('en-IN')}</span>
+                    </div>
+
+                    {/* Total */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)', marginBottom: 20 }}>
+                      <span style={{ color: '#fff', fontSize: 18, fontWeight: 900 }}>Total</span>
+                      <div style={{ textAlign: 'right' }}>
+                        {discountPct > 0 && <div style={{ textDecoration: 'line-through', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>₹{standardTotal.toLocaleString('en-IN')}</div>}
+                        <div style={{ color: '#fff', fontSize: 22, fontWeight: 900 }}>₹{totalAmount.toLocaleString('en-IN')}</div>
+                      </div>
+                    </div>
+
+                    {/* Coupon */}
+                    <a href="#" style={{ display: 'block', color: '#818cf8', fontSize: 13, fontWeight: 600, textDecoration: 'none', marginBottom: 20 }}>Have a coupon code?</a>
+
+                    {/* CTA Button */}
+                    <button
+                      onClick={handlePrefillSubmit}
+                      disabled={isLoading}
+                      style={{
+                        width: '100%', padding: '16px', borderRadius: 12, border: 'none',
+                        background: isLoading ? '#475569' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                        color: '#fff', fontSize: 16, fontWeight: 800, cursor: isLoading ? 'wait' : 'pointer',
+                        boxShadow: '0 8px 24px rgba(99,102,241,0.35)', transition: 'all 0.2s', marginBottom: 16
+                      }}
                     >
-                      <option value={1} style={{ background: '#0f172a' }}>1-month period</option>
-                      <option value={12} style={{ background: '#0f172a' }}>12-month period</option>
-                      <option value={24} style={{ background: '#0f172a' }}>24-month period</option>
-                      <option value={48} style={{ background: '#0f172a' }}>48-month period</option>
-                    </select>
-                  </div>
+                      {isLoading ? 'Opening Checkout...' : 'Continue →'}
+                    </button>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Enterprise Setup Fee</span>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                       <span style={{ textDecoration: 'line-through', color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>₹1,500</span>
-                       <span style={{ color: '#34d399', fontSize: 14, fontWeight: 700 }}>₹0</span>
+                    {/* Trust badges */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+                        <ShieldCheck size={14} color="#34d399" /> 30-day money-back guarantee
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+                        <Lock size={14} color="#60a5fa" /> 256-bit SSL encrypted checkout
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+                        <CreditCard size={14} color="#a78bfa" /> Secured by Razorpay
+                      </div>
                     </div>
                   </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, borderBottom: '1px dotted rgba(255,255,255,0.3)', cursor: 'help' }} title="Taxes include 18% GST.">Taxes (18% GST)</span>
-                    <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>₹{gstAmount.toLocaleString('en-IN')}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-                    <span style={{ color: '#fff', fontSize: 18, fontWeight: 800 }}>Total</span>
-                    <span style={{ color: '#fff', fontSize: 24, fontWeight: 900 }}>₹{totalAmount.toLocaleString('en-IN')}</span>
-                  </div>
-
-                  <a href="#" style={{ color: '#6366f1', fontSize: 14, fontWeight: 600, textDecoration: 'none', marginBottom: 24 }}>Have a coupon code?</a>
-                  
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.5)', fontSize: 13, justifyContent: 'center', marginTop: 'auto', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                    <ShieldCheck size={16} /> 30-day money-back guarantee
-                  </div>
                 </div>
+
               </div>
               );
             })()}
@@ -633,6 +830,23 @@ const LoginSection = ({ onLogin, initialView = "plans" }) => {
                     {isLoading ? "Authenticating..." : "Login to Dashboard"}
                     {!isLoading && <ArrowRight size={20} />}
                   </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', gap: 16 }}>
+                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 700 }}>OR</span>
+                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <GoogleLogin
+                      onSuccess={handleGoogleSuccess}
+                      onError={handleGoogleError}
+                      theme="filled_black"
+                      shape="pill"
+                      width={380}
+                      text="continue_with"
+                    />
+                  </div>
                 </form>
                 <div className="footer-nav">
                   <button className="text-btn" onClick={() => resetForm("plans")} style={{ color: "rgba(255,255,255,0.7)" }}>
