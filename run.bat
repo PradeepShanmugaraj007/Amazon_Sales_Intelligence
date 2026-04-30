@@ -1,6 +1,6 @@
 @echo off
 echo Starting FastAPI Backend...
-start "SellerIQ Backend" cmd /k "cd backend && python -m uvicorn app.main:app --port 5000 --reload"
+start "SellerIQ Backend" cmd /k "cd backend && python -m uvicorn app.main:app --port 5001 --reload"
 
 
 echo Starting React Frontend...

@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  BarChart3, 
-  ShieldCheck, 
-  FileText, 
-  TrendingUp, 
-  ArrowRight, 
-  Check, 
-  ExternalLink, 
-  X, 
+import {
+  BarChart3,
+  ShieldCheck,
+  FileText,
+  TrendingUp,
+  ArrowRight,
+  Check,
+  ExternalLink,
+  X,
   Link,
   Database,
   Zap,
@@ -84,18 +84,18 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
       </div>
 
       <div style={{ height: 260, width: '100%', marginBottom: '2rem', background: 'rgba(255,255,255,0.02)', borderRadius: 20, border: '1px border rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-         {/* Simple mockup chart */}
-         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, height: 160 }}>
-            {[60, 40, 80, 50, 90, 70, 95].map((h, i) => (
-              <motion.div 
-                key={i} 
-                initial={{ height: 0 }} 
-                animate={{ height: `${h}%` }} 
-                transition={{ duration: 1.5, delay: i * 0.1 }}
-                style={{ width: 30, background: `linear-gradient(to top, ${BRAND}, #818cf8)`, borderRadius: '8px 8px 0 0', opacity: 0.8 }} 
-              />
-            ))}
-         </div>
+        {/* Simple mockup chart */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, height: 160 }}>
+          {[60, 40, 80, 50, 90, 70, 95].map((h, i) => (
+            <motion.div
+              key={i}
+              initial={{ height: 0 }}
+              animate={{ height: `${h}%` }}
+              transition={{ duration: 1.5, delay: i * 0.1 }}
+              style={{ width: 30, background: `linear-gradient(to top, ${BRAND}, #818cf8)`, borderRadius: '8px 8px 0 0', opacity: 0.8 }}
+            />
+          ))}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
@@ -110,13 +110,13 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
           </div>
         ))}
       </div>
-      
+
       <div style={{ marginTop: 24, padding: '16px', borderRadius: 16, background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.1))', border: '1px solid rgba(99,102,241,0.2)', textAlign: 'center' }}>
-         <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-           <b>Instant Analysis</b> is now available in our dedicated Demo Dashboard. 
-           <br/>Upload files up to 1MB and get high-precision results in seconds.
-         </p>
-         <button onClick={onTryFree} className="btn-primary" style={{ marginTop: 12, padding: '0.6rem 1.4rem', fontSize: '0.8rem' }}>Open Demo Dashboard</button>
+        <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+          <b>Instant Analysis</b> is now available in our dedicated Demo Dashboard.
+          <br />Upload files up to 1MB and get high-precision results in seconds.
+        </p>
+        <button onClick={onTryFree} className="btn-primary" style={{ marginTop: 12, padding: '0.6rem 1.4rem', fontSize: '0.8rem' }}>Open Demo Dashboard</button>
       </div>
     </div>
   );
@@ -246,7 +246,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
 
             <h1>Unify Your Commerce Intelligence.</h1>
             <p>
-              The enterprise standard for marketplace data. Transform complex Amazon, Shopify, and ERP data into 
+              The enterprise standard for marketplace data. Transform complex Amazon, Shopify, and ERP data into
               actionable intelligence, automated compliance, and predictive growth.
             </p>
             <div className="hero-actions">
@@ -256,10 +256,10 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
             <div className="flex items-center gap-4" style={{ marginTop: '3rem' }}>
               <div className="flex -space-x-3">
                 {[1, 2, 3, 4].map((i) => (
-                  <img 
+                  <img
                     key={i}
-                    src={`https://picsum.photos/seed/user${i}/100/100`} 
-                    alt="User" 
+                    src={`https://picsum.photos/seed/user${i}/100/100`}
+                    alt="User"
                     className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
                     referrerPolicy="no-referrer"
                   />
@@ -343,8 +343,8 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
           </div>
 
           <div className="live-demo-container fade-in-on-scroll">
-            <div className="demo-window" style={{ 
-              boxShadow: '0 50px 100px -20px rgba(0,0,0,0.25)', 
+            <div className="demo-window" style={{
+              boxShadow: '0 50px 100px -20px rgba(0,0,0,0.25)',
               overflow: 'hidden',
               minHeight: 500
             }}>
@@ -374,9 +374,9 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
               <div className="sync-pulse delay-1"></div>
               <div className="sync-pulse delay-2"></div>
               <div className="amazon-logo-wrapper">
-                <img 
-                  src="https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg" 
-                  alt="Amazon" 
+                <img
+                  src="https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg"
+                  alt="Amazon"
                   className="amazon-sync-icon"
                   referrerPolicy="no-referrer"
                 />
@@ -430,8 +430,8 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
               <div className="badge">Native MTR Integration</div>
               <h2>Architected for Amazon</h2>
               <p>
-                SellerIQ Pro is built from the ground up to handle the unique complexities of 
-                Amazon Merchant Tax Reports. Our engine provides 100% reconciliation accuracy 
+                SellerIQ Pro is built from the ground up to handle the unique complexities of
+                Amazon Merchant Tax Reports. Our engine provides 100% reconciliation accuracy
                 with zero manual effort.
               </p>
               <div className="sync-status">
@@ -455,7 +455,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
           </div>
           <div className="steps-container">
             {[
-              { 
+              {
                 icon: (
                   <motion.div
                     animate={{ scale: [1, 1.1, 1] }}
@@ -463,12 +463,12 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                   >
                     <UploadCloud size={32} />
                   </motion.div>
-                ), 
-                title: "Upload Data", 
+                ),
+                title: "Upload Data",
                 desc: "Securely upload your Amazon MTR or Shopify CSV files. Our engine handles the rest.",
                 color: "var(--primary)"
               },
-              { 
+              {
                 icon: (
                   <motion.div
                     animate={{ rotate: 360 }}
@@ -476,12 +476,12 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                   >
                     <Cpu size={32} />
                   </motion.div>
-                ), 
-                title: "AI Analysis", 
+                ),
+                title: "AI Analysis",
                 desc: "Our proprietary algorithms scrub for risks, calculate taxes, and identify trends.",
                 color: "var(--secondary)"
               },
-              { 
+              {
                 icon: (
                   <motion.div
                     animate={{ y: [0, -8, 0] }}
@@ -489,8 +489,8 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                   >
                     <Rocket size={32} />
                   </motion.div>
-                ), 
-                title: "Scale Fast", 
+                ),
+                title: "Scale Fast",
                 desc: "Get actionable insights and automated reports to grow your business with confidence.",
                 color: "var(--accent)"
               }
@@ -564,7 +564,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
               <h3>Bank-Level Security</h3>
               <p>Enterprise-grade encryption and SOC2 compliant data handling for your business intelligence.</p>
             </div>
-            
+
             {/* New Features */}
             <div className="feature-card glass fade-in-on-scroll">
               <div className="feature-image">
@@ -626,16 +626,16 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
           <div className="analytics-content fade-in-on-scroll">
             <div className="section-header" style={{ textAlign: 'center', marginBottom: '3rem' }}>
               <div className="amazon-badge-top" style={{ marginBottom: '2rem' }}>
-                <img 
-                  src="https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg" 
-                  alt="Amazon" 
+                <img
+                  src="https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg"
+                  alt="Amazon"
                   className="amazon-top-logo"
                 />
                 <span className="font-black text-[10px] tracking-[0.2em] uppercase">Intelligence Engine</span>
               </div>
               <h2 className="section-title">Analytical Precision by Design</h2>
               <p className="section-subtitle">
-                Stop relying on spreadsheets. Our intelligence engine provides the only 100% accurate reconciliation 
+                Stop relying on spreadsheets. Our intelligence engine provides the only 100% accurate reconciliation
                 standard for enterprise marketplace operations.
               </p>
             </div>
@@ -659,9 +659,9 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                       { h: '90%', t: '₹13.5L', d: 0.6 },
                       { h: '80%', t: '₹11.2L', d: 0.7 }
                     ].map((bar, i) => (
-                      <motion.div 
+                      <motion.div
                         key={i}
-                        className="bar" 
+                        className="bar"
                         initial={{ height: 0 }}
                         whileInView={{ height: bar.h }}
                         viewport={{ once: true }}
@@ -685,26 +685,26 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                       <AreaChart data={chartData}>
                         <defs>
                           <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
-                            <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                            <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
+                            <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
-                        <XAxis 
-                          dataKey="name" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{fontSize: 10, fill: '#94a3b8', fontWeight: 600}} 
+                        <XAxis
+                          dataKey="name"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
                         />
                         <YAxis hide />
                         <Tooltip />
-                        <Area 
-                          type="monotone" 
-                          dataKey="rev" 
-                          stroke="#4f46e5" 
-                          strokeWidth={3} 
-                          fillOpacity={1} 
-                          fill="url(#colorRev)" 
+                        <Area
+                          type="monotone"
+                          dataKey="rev"
+                          stroke="#4f46e5"
+                          strokeWidth={3}
+                          fillOpacity={1}
+                          fill="url(#colorRev)"
                         />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -721,10 +721,10 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                     { label: 'MTR Processing Level', value: 'Tier 3', trend: 'Priority', desc: 'Advanced scrubbing active.', tint: '#f59e0b' },
                     { label: 'Estimated Tax Liability', value: '₹4.2L', trend: 'Calculated', desc: 'Ready for GSTR filing.', tint: '#8b5cf6' }
                   ].map((stat, i) => (
-                    <div key={i} style={{ 
-                      padding: '1.5rem', 
-                      borderRadius: '1.5rem', 
-                      background: '#ffffff', 
+                    <div key={i} style={{
+                      padding: '1.5rem',
+                      borderRadius: '1.5rem',
+                      background: '#ffffff',
                       border: '1px solid #e2e8f0',
                       boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
                     }}>
@@ -736,11 +736,11 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                       </div>
                     </div>
                   ))}
-                  
-                  <div style={{ 
-                    padding: '1.5rem', 
-                    borderRadius: '1.5rem', 
-                    background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)', 
+
+                  <div style={{
+                    padding: '1.5rem',
+                    borderRadius: '1.5rem',
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
                     color: 'white',
                     boxShadow: '0 10px 30px -10px rgba(79, 70, 229, 0.5)'
                   }}>
@@ -885,9 +885,9 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                     </div>
                     <AnimatePresence initial={false}>
                       {openFaq === i && (
-                        <motion.div 
-                          initial={{ height: 0, opacity: 0 }} 
-                          animate={{ height: 'auto', opacity: 1 }} 
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.3, ease: 'easeInOut' }}
                           style={{ overflow: 'hidden' }}
