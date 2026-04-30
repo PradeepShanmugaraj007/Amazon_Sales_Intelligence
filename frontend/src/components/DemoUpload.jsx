@@ -132,20 +132,13 @@ const DemoUpload = ({ onFileSelect, ingestionStatus, onLimitHit }) => {
               </div>
 
               {migrationStatus === 100 && (
-                <button 
-                  onClick={() => {
-                    setLoading(false);
-                    onData(null, '', ''); // Fallback trigger
-                  }}
-                  style={{ 
-                    marginTop: 10, width: '100%', padding: '12px', background: 'white', 
-                    color: '#6366f1', borderRadius: 12, fontWeight: 800, border: 'none', 
-                    cursor: 'pointer', boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
-                    animation: 'fadeIn 0.3s ease-out'
-                  }}
-                >
-                  🚀 Launch Dynamic Dashboard
-                </button>
+                <div style={{ 
+                  marginTop: 10, width: '100%', padding: '12px', background: 'rgba(16,185,129,0.1)', 
+                  color: '#10b981', borderRadius: 12, fontWeight: 800, border: '1px solid rgba(16,185,129,0.3)',
+                  textAlign: 'center', animation: 'fadeIn 0.3s ease-out'
+                }}>
+                  ✅ Analysis Complete. Redirecting...
+                </div>
               )}
             </div>
           )}

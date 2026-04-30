@@ -8,7 +8,7 @@ import {
 import { 
   AlertTriangle, MapPin, Package, RotateCcw, User, Tag, 
   ChevronDown, ChevronUp, Shield, Calendar, Search, 
-  TrendingUp, TrendingDown, Clock, Activity, Download, Check
+  TrendingUp, TrendingDown, Clock, Activity, Download, Check, Sparkles, CreditCard
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx-js-style';
@@ -119,7 +119,7 @@ const UpgradeBanner = ({ feature, requiredPlan, color, icon }) => (
 );
 
 // ─── MAIN DASHBOARD ─────────────────────────────────────────────────────────
-const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudData, onReset, isDemoMode, onLogout }) => {
+const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudData, onReset, isDemoMode, onLogout, usageStats }) => {
   const { dataset, updateDataset } = useAppContext();
 
   // Plan-based tab access rules
@@ -502,7 +502,15 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
 
   return (
     <div style={styles.container}>
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} stats={stats} onReset={onReset} activePlan={activePlan} isDemoMode={isDemoMode} />
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        stats={stats} 
+        onReset={onReset} 
+        activePlan={activePlan} 
+        isDemoMode={isDemoMode} 
+        usageStats={usageStats}
+      />
 
       <div style={styles.main} className="dash-main" id="dashboard-export-area">
         {activePlan === 'starter' && !isExporting && (
@@ -1314,11 +1322,15 @@ class ErrorBoundary extends React.Component {
 
 function AppContent() {
   const [userRole, setUserRole] = useState(() => sessionStorage.getItem('siq_role')); 
-  const [activePlan, setActivePlan] = useState(() => sessionStorage.getItem('siq_plan') || 'starter'); 
+  const [activePlan, setActivePlan] = useState(() => sessionStorage.getItem('siq_plan') || 'demo'); 
   const [state, setState] = useState({ rawData: null, analysis: null, filename: null });
   const [showLanding, setShowLanding] = useState(() => !sessionStorage.getItem('siq_role'));
   const [loginView, setLoginView] = useState("plans");
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(() => {
+    const hash = window.location.hash.replace('#', '');
+    const plan = sessionStorage.getItem('siq_plan');
+    return hash === 'demo' || plan === 'demo' || !sessionStorage.getItem('siq_role');
+  });
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [demoBlockReason, setDemoBlockReason] = useState(null);
   const [ingestion, setIngestion] = useState({ loading: false, msg: "", progress: 0 });
@@ -1330,6 +1342,9 @@ function AppContent() {
   const [expiredSession, setExpiredSession] = useState(false);
   const [prefillData, setPrefillData] = useState(null);
   const [demoUploadCount, setDemoUploadCount] = useState(() => parseInt(sessionStorage.getItem('siq_demo_used') || '0', 10));
+  const [usageStats, setUsageStats] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('siq_usage_stats') || '{"used":0,"limit":10}'); } catch { return { used: 0, limit: 10 }; }
+  });
 
   const handleGoogleSuccess = async (response) => {
     try {
@@ -1450,9 +1465,10 @@ function AppContent() {
       setDemoBlockReason('limit_reached');
       return;
     }
-    setDemoUploadCount(prev => prev + 1);
-    sessionStorage.setItem('siq_demo_used', '1');
-    setDemoIngestion({ loading: true, msg: "Initializing engine...", progress: 5 });
+      setDemoUploadCount(prev => prev + 1);
+      setUsageStats(prev => ({ ...prev, used: (prev.used || 0) + 1 }));
+      sessionStorage.setItem('siq_demo_used', '1');
+      setDemoIngestion({ loading: true, msg: "Initializing engine...", progress: 5 });
     try {
       const res = await analyzeReport(file, (pct) => {
         setDemoIngestion(prev => ({ ...prev, progress: Math.max(prev.progress, pct), msg: pct < 100 ? "Syncing data blocks..." : "Analyzing patterns..." }));
@@ -1466,7 +1482,12 @@ function AppContent() {
         session_id: res.session_id,
         fraud: res.analysis?.fraud
       });
-      window.location.hash = 'overview';
+      
+      // Auto-transition to dashboard + show plan overlay after a short delay
+      setTimeout(() => {
+        window.location.hash = 'overview';
+        setDemoBlockReason('limit_reached');
+      }, 1500);
     } catch (err) {
       console.error("Demo ingestion failed:", err);
       setDemoIngestion({ loading: false, msg: err.response?.data?.detail || "Analysis failed. Ensure valid MTR format.", progress: 0 });
@@ -1474,23 +1495,65 @@ function AppContent() {
   };
 
   const demoLimitOverlay = demoBlockReason ? (
-    <LoginRegisterModal 
-      onClose={() => {
-        if (demoBlockReason === 'timeout') {
-          sessionStorage.clear();
-          window.location.hash = 'home';
-        } else {
+    userRole ? (
+      /* Logged in user hit demo limit -> Show Upgrade Dialogue */
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, background: "rgba(2, 6, 23, 0.9)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", animation: "fadeIn 0.3s ease-out" }}>
+        <div style={{ background: "linear-gradient(135deg, #0f172a, #111827)", padding: 48, borderRadius: 28, textAlign: "center", maxWidth: 480, border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 40px 80px -20px rgba(0,0,0,0.8)" }}>
+          <div style={{ width: 80, height: 80, background: "rgba(99,102,241,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
+            <Sparkles size={40} color="#818cf8" />
+          </div>
+          <h2 style={{ fontSize: 28, color: "#fff", marginBottom: 12, fontWeight: 900 }}>Demo Credit Exhausted</h2>
+          <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 36, lineHeight: 1.6, fontSize: 15 }}>
+            You've explored the engine as a guest. To unlock full processing power and permanent storage, please upgrade to a workspace plan.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <button 
+              onClick={() => {
+                setDemoBlockReason(null);
+                setLoginView("plans");
+                setShowLanding(false);
+                window.location.hash = 'login';
+              }} 
+              style={{ 
+                padding: "16px", borderRadius: 16, background: "linear-gradient(135deg, #6366f1, #4f46e5)", color: "#fff", 
+                fontWeight: 800, border: "none", cursor: "pointer", fontSize: 16, display: "flex", 
+                alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 8px 20px rgba(99,102,241,0.3)" 
+              }}
+            >
+              <CreditCard size={20} /> Continue with Plan
+            </button>
+            <button 
+              onClick={() => {
+                setDemoBlockReason(null);
+                window.location.hash = 'home';
+              }} 
+              style={{ padding: "14px", borderRadius: 14, background: "rgba(255,255,255,0.05)", color: "#94a3b8", fontWeight: 700, border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", fontSize: 14 }}
+            >
+              Back to Overview
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : (
+      /* Guest user hit demo limit -> Show Login/Register Modal */
+      <LoginRegisterModal 
+        onClose={() => {
+          if (demoBlockReason === 'timeout') {
+            sessionStorage.clear();
+            window.location.hash = 'home';
+          } else {
+            setDemoBlockReason(null);
+          }
+        }}
+        onLogin={(role, plan, usageStats, initialPlanStatus, targetHash) => {
+          setUserRole(role || 'user');
+          if (plan) setActivePlan(plan);
+          if (initialPlanStatus) setPlanStatus(initialPlanStatus);
           setDemoBlockReason(null);
-        }
-      }}
-      onLogin={(role, plan, usageStats, initialPlanStatus) => {
-        setUserRole(role || 'user');
-        if (plan) setActivePlan(plan);
-        if (initialPlanStatus) setPlanStatus(initialPlanStatus);
-        setDemoBlockReason(null);
-        window.location.hash = 'upload';
-      }}
-    />
+          window.location.hash = targetHash || 'upload';
+        }}
+      />
+    )
   ) : null;
 
   // Persist session to session storage
@@ -1518,14 +1581,16 @@ function AppContent() {
          setShowDemoModal(false);
          sessionStorage.clear();
       } else if (hash === 'upload') {
-         // Entering main upload: always exit demo mode and reset demo state
-         setIsDemoMode(false);
-         setDemoIngestion({ loading: false, msg: '', progress: 0 });
-         setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null, fraud: null });
+          if (activePlan === 'demo' || !userRole) {
+            window.location.hash = 'demo';
+            return;
+          }
+          setIsDemoMode(false);
+          setDemoIngestion({ loading: false, msg: '', progress: 0 });
+          setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null, fraud: null });
       } else if (hash === 'demo') {
          // Entering demo: reset main ingestion so it never bleeds into demo
          setIsDemoMode(true);
-         setActivePlan('pro');
          setShowLanding(false);
          setState({ rawData: null, analysis: null, filename: null });
          setIngestion({ loading: false, msg: '', progress: 0 });
@@ -1546,7 +1611,7 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleNavigation);
   }, [userRole]);
 
-  // Demo Completion Logic: Trigger modal after 20s of viewing analysis
+  // Demo Completion Logic: Trigger modal after 1 minute of viewing analysis
   useEffect(() => {
     let timer;
     if (isDemoMode && state.rawData && !demoBlockReason) {
@@ -1587,12 +1652,17 @@ function AppContent() {
     return <LoginSection
       initialView={expiredSession ? 'expired_redirect' : loginView}
       prefillData={prefillData}
-      onLogin={(role, plan, usageStats, initialPlanStatus) => {
+      onLogin={(role, plan, usageStats, initialPlanStatus, targetHash) => {
         setUserRole(role || 'user');
         if (plan) setActivePlan(plan);
+        if (usageStats) {
+          setUsageStats(usageStats);
+          sessionStorage.setItem('siq_usage_stats', JSON.stringify(usageStats));
+        }
         if (initialPlanStatus) setPlanStatus(initialPlanStatus);
         setExpiredSession(false);
-        window.location.hash = role === 'admin' ? 'admin' : 'upload';
+        // If targetHash is provided, use it. Otherwise, admins go to #admin, users go to #upload (which redirects to #demo if needed)
+        window.location.hash = targetHash || (role === 'admin' ? 'admin' : 'upload');
       }}
     />;
   }
@@ -1695,6 +1765,7 @@ function AppContent() {
           session_id={state.session_id}
           fraudData={state.fraud}
           isDemoMode={isDemoMode}
+          usageStats={isDemoMode ? { used: demoUploadCount, limit: 1 } : usageStats}
           onReset={(fileOrEvent) => {
             // Signal from Sidebar Quick Upload in demo mode → show upgrade overlay
             if (fileOrEvent === '__demo_limit__') {

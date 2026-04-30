@@ -127,7 +127,7 @@ const Sidebar = ({
       <button 
         onClick={() => {
           if (isDemoMode) {
-            // In demo mode: never open file picker — show upgrade dialog instead
+            // In demo mode: never open file picker for a second upload — show upgrade dialog immediately
             if (onReset) onReset('__demo_limit__');
             return;
           }

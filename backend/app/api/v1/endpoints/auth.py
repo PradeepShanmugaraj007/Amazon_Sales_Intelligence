@@ -235,7 +235,7 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
         name=name,
         email=req.email,
         phone=req.phone,
-        plan="starter",
+        plan="demo",
         status="Active",
         provider="Email",
         monthly_uploads=0,
@@ -370,7 +370,7 @@ async def google_login(req: GoogleLoginRequest, db: AsyncSession = Depends(get_d
                 }
             )
 
-        plan = (user.plan or "starter").lower()
+        plan = (user.plan or "demo").lower()
         limits = {"starter": 3, "pro": 10, "enterprise": 30}
         limit = limits.get(plan, 3)
 

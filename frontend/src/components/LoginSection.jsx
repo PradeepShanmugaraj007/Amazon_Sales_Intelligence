@@ -221,7 +221,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
       sessionStorage.setItem("siq_plan_status", JSON.stringify(data.plan_status || {}));
       localStorage.setItem("userEmail", data.user.email);
       setRegMsg("🎉 Account created! Welcome, " + data.user.name + "!");
-      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats, data.plan_status), 1000);
+      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats, data.plan_status, "demo"), 1000);
     } catch { setRegErr("Could not reach server."); setRegLoading(false); }
   };
 
