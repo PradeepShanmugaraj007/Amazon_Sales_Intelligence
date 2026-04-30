@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 from app.db.session import get_db
 from app.models.sales import User
 from app.core.security import verify_password, get_password_hash, create_access_token, oauth2_scheme, decode_access_token
-from app.services.email_service import send_email, get_reset_email_html
+from app.services.email_service import send_email, get_reset_email_html, get_otp_email_html
 from app.core.config import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests as auth_requests
@@ -26,6 +26,20 @@ class GoogleLoginRequest(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: str
+
+class SendOtpRequest(BaseModel):
+    email: str
+    name: str
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    phone: str
+    otp: str
+    password: str
+
+# In-memory OTP store: {email: {"otp": "123456", "name": "John", "expires_at": datetime}}
+_otp_store: dict = {}
 
 def generate_password(length=10):
     chars = string.ascii_letters + string.digits + "!@#$"
@@ -60,21 +74,33 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalars().first()
     
-    if req.email == "admin@selleriq.pro" and req.password == "password":
+    if req.email == "admin@selleriq.pro" and req.password == "Admin@1234":
         if not user:
             user = User(
                 id=str(uuid.uuid4()),
-                user_id="GUEST-001",
+                user_id="SIQ-ADMIN",
                 email=req.email,
-                name="Guest Admin",
+                name="System Administrator",
                 plan="enterprise",
-                is_admin=True
+                is_admin=True,
+                hashed_password=get_password_hash(req.password)
             )
             db.add(user)
             await db.commit()
     else:
         if not user:
-            raise HTTPException(status_code=401, detail="Account not found.")
+            raise HTTPException(status_code=401, detail="No account found with this email.")
+        
+        if user.hashed_password:
+            if not verify_password(req.password, user.hashed_password):
+                raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
+        else:
+            # If user has no password (e.g. Google Auth user), they must use Google Auth
+            if user.provider == "Google":
+                 raise HTTPException(status_code=401, detail="This account uses Google Login. Please sign in with Google.")
+            else:
+                 # Should not happen for new users, but for legacy ones
+                 raise HTTPException(status_code=401, detail="Credentials not set for this account.")
 
     plan_status = get_plan_status(user)
     if plan_status["status"] == "expired":
@@ -154,6 +180,88 @@ async def bypass_login(payload: dict = Body(...), db: AsyncSession = Depends(get
             "picture": user.picture
         },
         "plan_status": plan_status
+    }
+
+@router.post("/send-otp")
+async def send_otp(req: SendOtpRequest, db: AsyncSession = Depends(get_db)):
+    """Send a 6-digit OTP to the given email for registration verification."""
+    # Check if email is already registered
+    result = await db.execute(select(User).where(User.email == req.email))
+    existing = result.scalars().first()
+    if existing:
+        raise HTTPException(status_code=409, detail="An account with this email already exists. Please login instead.")
+    
+    from datetime import timedelta
+    otp = "".join(random.choices("0123456789", k=6))
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    _otp_store[req.email] = {"otp": otp, "name": req.name, "expires_at": expires_at}
+    
+    sent = send_email(
+        req.email,
+        "SellerIQ Pro – Your Verification Code",
+        get_otp_email_html(req.name, otp)
+    )
+    return {"success": True, "email_sent": sent, "message": "OTP sent to your email address."}
+
+@router.post("/register")
+async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    """Verify OTP and create a new user account."""
+    entry = _otp_store.get(req.email)
+    if not entry:
+        raise HTTPException(status_code=400, detail="No OTP was requested for this email. Please request a new OTP.")
+    
+    if datetime.utcnow() > entry["expires_at"]:
+        _otp_store.pop(req.email, None)
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+    
+    if entry["otp"] != req.otp:
+        raise HTTPException(status_code=400, detail="Incorrect OTP. Please check your email and try again.")
+    
+    # OTP valid — clean up
+    _otp_store.pop(req.email, None)
+    
+    # Check again if email taken (race condition)
+    result = await db.execute(select(User).where(User.email == req.email))
+    existing = result.scalars().first()
+    if existing:
+        raise HTTPException(status_code=409, detail="An account with this email already exists.")
+    
+    name = entry["name"]
+    user_id = "SIQ-" + "".join(random.choices("0123456789", k=4))
+    
+    new_user = User(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        name=name,
+        email=req.email,
+        phone=req.phone,
+        plan="starter",
+        status="Active",
+        provider="Email",
+        monthly_uploads=0,
+        hashed_password=get_password_hash(req.password)
+    )
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    
+    token = create_access_token(data={"sub": new_user.email})
+    plan_status = get_plan_status(new_user)
+    limits = {"starter": 3, "pro": 10, "enterprise": 30}
+    
+    return {
+        "success": True,
+        "access_token": token,
+        "token_type": "bearer",
+        "plan_status": plan_status,
+        "user": {
+            "user_id": new_user.user_id,
+            "name": new_user.name,
+            "plan": new_user.plan,
+            "email": new_user.email,
+            "plan_expiry": None,
+            "usageStats": {"used": 0, "limit": 3, "plan": "STARTER"}
+        }
     }
 
 @router.post("/forgot-password")

@@ -47,7 +47,8 @@ async def get_all_users(db: AsyncSession = Depends(get_db)):
             "status": u.status,
             "provider": u.provider or "Email",
             "joined": u.joined.strftime("%Y-%m-%d %H:%M") if u.joined else None,
-            "expiry_date": u.expiry_date.strftime("%Y-%m-%d") if u.expiry_date else None
+            "expiry_date": u.expiry_date.strftime("%Y-%m-%d") if u.expiry_date else None,
+            "is_admin": u.is_admin
         }
 
         if u.expiry_date:

@@ -265,7 +265,7 @@ const AdminPanel = ({ onLogout }) => {
                 ) : (
                 <table className="admin-table">
                   <thead>
-                    <tr><th>User</th><th>User ID</th><th>Phone</th><th>Plan</th><th>Provider</th><th>Joined</th><th>Status</th></tr>
+                    <tr><th>User</th><th>User ID</th><th>Phone</th><th>Plan</th><th>Role</th><th>Provider</th><th>Joined</th><th>Status</th></tr>
                   </thead>
                   <tbody>
                     {filteredUsers.map((u, i) => (
@@ -284,6 +284,12 @@ const AdminPanel = ({ onLogout }) => {
                         <td style={{ fontFamily: "monospace", color: "#3b82f6", fontWeight: 700 }}>{u.user_id}</td>
                         <td style={{ fontSize: 13 }}>{u.phone || '—'}</td>
                         <td>{getPlanIcon(u.plan)} {capitalize(u.plan)}</td>
+                        <td>
+                          {u.is_admin 
+                            ? <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800, background: 'rgba(99,102,241,0.15)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.3)' }}>ADMIN</span>
+                            : <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800, background: 'rgba(148,163,184,0.15)', color: '#64748b', border: '1px solid rgba(148,163,184,0.3)' }}>USER</span>
+                          }
+                        </td>
                         <td>
                           {u.provider === 'Google'
                             ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800, background: '#fef9c3', color: '#a16207', border: '1px solid #fde68a' }}>🔵 Google</span>

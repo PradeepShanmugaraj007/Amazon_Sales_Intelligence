@@ -201,3 +201,47 @@ def get_expiry_warning_email_html(name, plan, expiry_date):
 </body>
 </html>
 """
+
+def get_otp_email_html(name: str, otp: str):
+    return f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#f0f9ff;font-family:'Inter', sans-serif;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table width="100%" style="max-width:520px;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.07);border:1px solid #e2e8f0;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#0f172a,#1e3a8a);padding:48px 40px;text-align:center;">
+              <h1 style="color:#ffffff;margin:0;font-size:28px;font-weight:900;letter-spacing:-1px;">SellerIQ <span style="color:#60a5fa;">Pro</span></h1>
+              <p style="color:rgba(255,255,255,0.55);margin:10px 0 0;font-size:13px;letter-spacing:1px;text-transform:uppercase;font-weight:700;">Email Verification</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:44px 40px;">
+              <h2 style="color:#0f172a;font-size:22px;margin:0 0 12px;font-weight:800;">Hello {name} 👋</h2>
+              <p style="color:#64748b;font-size:15px;line-height:1.7;margin:0 0 32px;">
+                Use the one-time verification code below to complete your registration. This code expires in <strong>10 minutes</strong>.
+              </p>
+              <div style="background:#f8fafc;border:2px dashed #cbd5e1;border-radius:16px;padding:28px;text-align:center;margin-bottom:32px;">
+                <div style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">Your OTP Code</div>
+                <div style="font-size:44px;font-weight:900;color:#2563eb;letter-spacing:12px;font-family:monospace;">{otp}</div>
+              </div>
+              <p style="color:#ef4444;font-size:13px;font-weight:700;text-align:center;">🔒 Never share this code with anyone. SellerIQ staff will never ask for it.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 40px;background-color:#fcfdfe;text-align:center;border-top:1px solid #f1f5f9;">
+              <p style="color:#94a3b8;font-size:12px;margin:0;">© 2026 SellerIQ Pro. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""

@@ -21,6 +21,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     provider = Column(String, nullable=True)
     picture = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=True)
     
     reports = relationship("Report", back_populates="owner")
 

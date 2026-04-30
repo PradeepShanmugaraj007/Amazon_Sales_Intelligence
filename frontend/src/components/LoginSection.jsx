@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck, Lock, User, ArrowRight, BarChart2, TrendingUp, CheckCircle, CreditCard, Key, Briefcase, Phone, Mail, RotateCcw, AlertTriangle, MapPin, ChevronDown } from "lucide-react";
+import { ShieldCheck, Lock, User, ArrowRight, BarChart2, TrendingUp, CheckCircle, CreditCard, Key, Briefcase, Phone, Mail, RotateCcw, AlertTriangle, MapPin, ChevronDown, Eye, EyeOff, Sparkles } from "lucide-react";
 import { GoogleLogin } from '@react-oauth/google';
 const loadRazorpay = () => new Promise((resolve) => {
   const script = document.createElement("script");
@@ -42,6 +42,21 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
   // Forgot password
   const [forgotEmail, setForgotEmail] = useState("");
 
+  // Register state
+  const [regName, setRegName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  const [regOtp, setRegOtp] = useState("");
+  const [regPass, setRegPass] = useState("");
+  const [regConfirmPass, setRegConfirmPass] = useState("");
+  const [regErr, setRegErr] = useState("");
+  const [regMsg, setRegMsg] = useState("");
+  const [regLoading, setRegLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+
   const resetForm = (newView) => {
     setView(newView);
     setUser("");
@@ -50,6 +65,9 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
     setIsLoading(false);
     setMsg("");
     setPrefillErr("");
+    // Reset register state too
+    setRegName(""); setRegEmail(""); setRegPhone(""); setRegOtp(""); setRegPass(""); setRegConfirmPass("");
+    setRegErr(""); setRegMsg(""); setOtpSent(false);
   };
 
   React.useEffect(() => {
@@ -159,6 +177,52 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
       setPrefillErr("Network Error: Could not reach payment server.");
       setIsLoading(false);
     }
+  };
+
+  // ── OTP & Register ────────────────────────────────────────────────────────
+  const handleSendOtp = async () => {
+    if (!regName.trim()) { setRegErr("Please enter your full name first."); return; }
+    if (!regEmail.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) { setRegErr("Enter a valid email address."); return; }
+    setRegErr("");
+    setOtpLoading(true);
+    try {
+      const res = await fetch("/api/v1/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: regEmail, name: regName }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setRegErr(data.detail || "Failed to send OTP."); setOtpLoading(false); return; }
+      setOtpSent(true);
+      setRegMsg("✅ OTP sent to " + regEmail + ". Check your inbox!");
+      setOtpLoading(false);
+    } catch { setRegErr("Could not reach server."); setOtpLoading(false); }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setRegErr("");
+    if (!otpSent) { setRegErr("Please request your OTP first."); return; }
+    if (regOtp.length !== 6) { setRegErr("Enter the 6-digit OTP from your email."); return; }
+    if (regPass.length < 8) { setRegErr("Password must be at least 8 characters."); return; }
+    if (regPass !== regConfirmPass) { setRegErr("Passwords do not match."); return; }
+    setRegLoading(true);
+    try {
+      const res = await fetch("/api/v1/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: regName, email: regEmail, phone: regPhone, otp: regOtp, password: regPass }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setRegErr(data.detail || "Registration failed."); setRegLoading(false); return; }
+      sessionStorage.setItem("siq_auth_token", data.access_token);
+      sessionStorage.setItem("siq_user_name", data.user.name);
+      sessionStorage.setItem("siq_plan_expiry", data.user.plan_expiry || "");
+      sessionStorage.setItem("siq_plan_status", JSON.stringify(data.plan_status || {}));
+      localStorage.setItem("userEmail", data.user.email);
+      setRegMsg("🎉 Account created! Welcome, " + data.user.name + "!");
+      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats, data.plan_status), 1000);
+    } catch { setRegErr("Could not reach server."); setRegLoading(false); }
   };
 
   // ── Client Login (real validation) ───────────────────────────────────────
@@ -795,10 +859,10 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
               </div>
             )}
 
-            {/* ── USER LOGIN ── */}
-            {view === "user_login" && (
+            {/* ── USER LOGIN / REGISTER ── */}
+            {(view === "user_login" || view === "register") && (
               <>
-                {/* Session-expired notice (shown when dashboard auto-logged them out) */}
+                {/* Session-expired notice */}
                 {sessionExpiredMsg && (
                   <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 14, padding: '14px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, animation: 'fadeIn 0.4s ease' }}>
                     <AlertTriangle size={20} color="#ef4444" style={{ flexShrink: 0 }} />
@@ -808,59 +872,189 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
                     </div>
                   </div>
                 )}
-                <div style={{ textAlign: "center", marginBottom: 48, animation: "slideIn 0.3s ease-out" }}>
-                  <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.05))", border: "1px solid rgba(59, 130, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
-                    <Briefcase size={32} color="#60a5fa" />
-                  </div>
-                  <h2 style={{ color: "#fff", fontSize: 28, fontWeight: 800, margin: "0 0 10px" }}>Client Login</h2>
-                  <p style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: 15, margin: 0 }}>Access your workspace dashboard.</p>
-                </div>
-                <form onSubmit={handleClientLogin}>
-                  <div className="input-group">
-                    <Mail size={22} className="input-icon" />
-                    <input type="email" className="custom-input" placeholder="Registered Email" value={user} onChange={e => setUser(e.target.value)} required />
-                  </div>
-                  <div className="input-group">
-                    <Lock size={22} className="input-icon" />
-                    <input type="password" className="custom-input" placeholder="Your Password" value={pass} onChange={e => setPass(e.target.value)} required />
-                  </div>
-                  {err && <div className="err-box">{err}</div>}
-                  {msg && <div className="success-badge"><CheckCircle size={18} />{msg}</div>}
-                  <button type="submit" className="auth-btn" disabled={isLoading}>
-                    {isLoading ? "Authenticating..." : "Login to Dashboard"}
-                    {!isLoading && <ArrowRight size={20} />}
-                  </button>
 
-                  <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', gap: 16 }}>
-                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 700 }}>OR</span>
-                    <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <GoogleLogin
-                      onSuccess={handleGoogleSuccess}
-                      onError={handleGoogleError}
-                      theme="filled_black"
-                      shape="pill"
-                      width={380}
-                      text="continue_with"
-                    />
-                  </div>
-                </form>
-                <div className="footer-nav">
-                  <button className="text-btn" onClick={() => resetForm("plans")} style={{ color: "rgba(255,255,255,0.7)" }}>
-                    <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Back to Plans
-                  </button>
-                  <span style={{ color: "rgba(255,255,255,0.2)" }}>|</span>
-                  <button className="text-btn" onClick={() => { setForgotEmail(""); setErr(""); setView("forgot_password"); }} style={{ color: "#f59e0b" }}>
-                    <RotateCcw size={14} /> Forgot Password
-                  </button>
-                  <span style={{ color: "rgba(255,255,255,0.2)" }}>|</span>
-                  <button className="text-btn" onClick={() => resetForm("admin")} style={{ color: "#94a3b8" }}>
-                    <Key size={14} /> Admin Access
-                  </button>
+                {/* Login / Register toggle tabs */}
+                <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: 4, marginBottom: 32 }}>
+                  <button
+                    onClick={() => resetForm('user_login')}
+                    style={{ flex: 1, padding: '11px', borderRadius: 12, border: 'none', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.25s', fontFamily: "'Inter', sans-serif",
+                      background: view === 'user_login' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent',
+                      color: view === 'user_login' ? '#fff' : 'rgba(255,255,255,0.4)',
+                      boxShadow: view === 'user_login' ? '0 4px 12px rgba(37,99,235,0.35)' : 'none'
+                    }}
+                  >Login</button>
+                  <button
+                    onClick={() => resetForm('register')}
+                    style={{ flex: 1, padding: '11px', borderRadius: 12, border: 'none', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.25s', fontFamily: "'Inter', sans-serif",
+                      background: view === 'register' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent',
+                      color: view === 'register' ? '#fff' : 'rgba(255,255,255,0.4)',
+                      boxShadow: view === 'register' ? '0 4px 12px rgba(37,99,235,0.35)' : 'none'
+                    }}
+                  >Register</button>
                 </div>
+
+                {/* ── LOGIN VIEW ── */}
+                {view === 'user_login' && (
+                  <>
+                    <div style={{ textAlign: "center", marginBottom: 36, animation: "slideIn 0.3s ease-out" }}>
+                      <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.05))", border: "1px solid rgba(59, 130, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
+                        <Briefcase size={32} color="#60a5fa" />
+                      </div>
+                      <h2 style={{ color: "#fff", fontSize: 26, fontWeight: 800, margin: "0 0 8px" }}>Client Login</h2>
+                      <p style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: 14, margin: 0 }}>Access your workspace dashboard.</p>
+                    </div>
+                    <form onSubmit={handleClientLogin}>
+                      <div className="input-group">
+                        <Mail size={22} className="input-icon" />
+                        <input type="email" className="custom-input" placeholder="Registered Email" value={user} onChange={e => setUser(e.target.value)} required />
+                      </div>
+                      <div className="input-group" style={{ position: 'relative' }}>
+                        <Lock size={22} className="input-icon" />
+                        <input type={showPass ? "text" : "password"} className="custom-input" placeholder="Your Password" value={pass} onChange={e => setPass(e.target.value)} required />
+                        <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', padding: 4 }}>
+                          {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                      {err && <div className="err-box">{err}</div>}
+                      {msg && <div className="success-badge"><CheckCircle size={18} />{msg}</div>}
+                      <button type="submit" className="auth-btn" disabled={isLoading}>
+                        {isLoading ? "Authenticating..." : "Login to Dashboard"}
+                        {!isLoading && <ArrowRight size={20} />}
+                      </button>
+
+                      <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', gap: 16 }}>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 700 }}>OR</span>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleError} theme="filled_black" shape="pill" width={380} text="continue_with" />
+                      </div>
+                    </form>
+                    <div className="footer-nav">
+                      <button className="text-btn" onClick={() => resetForm("plans")} style={{ color: "rgba(255,255,255,0.7)" }}>
+                        <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Back to Plans
+                      </button>
+                      <span style={{ color: "rgba(255,255,255,0.2)" }}>|</span>
+                      <button className="text-btn" onClick={() => { setForgotEmail(""); setErr(""); setView("forgot_password"); }} style={{ color: "#f59e0b" }}>
+                        <RotateCcw size={14} /> Forgot Password
+                      </button>
+                      <span style={{ color: "rgba(255,255,255,0.2)" }}>|</span>
+                      <button className="text-btn" onClick={() => resetForm("admin")} style={{ color: "#94a3b8" }}>
+                        <Key size={14} /> Admin Access
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* ── REGISTER VIEW ── */}
+                {view === 'register' && (
+                  <>
+                    <div style={{ textAlign: "center", marginBottom: 28, animation: "slideIn 0.3s ease-out" }}>
+                      <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.05))", border: "1px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+                        <Sparkles size={32} color="#818cf8" />
+                      </div>
+                      <h2 style={{ color: "#fff", fontSize: 26, fontWeight: 800, margin: "0 0 8px" }}>Create Account</h2>
+                      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: 0 }}>Verify your email and get started for free.</p>
+                    </div>
+
+                    {regErr && <div className="err-box">{regErr}</div>}
+                    {regMsg && <div className="success-badge"><CheckCircle size={18} />{regMsg}</div>}
+
+                    <form onSubmit={handleRegister}>
+                      {/* Name */}
+                      <div className="input-group">
+                        <User size={20} className="input-icon" />
+                        <input type="text" className="custom-input" placeholder="Full Name" value={regName} onChange={e => setRegName(e.target.value)} required />
+                      </div>
+
+                      {/* Phone */}
+                      <div className="input-group">
+                        <Phone size={20} className="input-icon" />
+                        <input type="tel" className="custom-input" placeholder="Phone Number" value={regPhone} onChange={e => setRegPhone(e.target.value)} required />
+                      </div>
+
+                      {/* Email + Send OTP */}
+                      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                        <div style={{ flex: 1, position: 'relative' }}>
+                          <Mail size={20} style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} />
+                          <input type="email" className="custom-input" placeholder="Gmail Address" value={regEmail}
+                            onChange={e => setRegEmail(e.target.value)} required disabled={otpSent}
+                            style={{ paddingLeft: 54 }}
+                          />
+                        </div>
+                        <button type="button"
+                          onClick={handleSendOtp}
+                          disabled={otpLoading || otpSent}
+                          style={{
+                            padding: '0 16px', borderRadius: 14, border: `1px solid ${otpSent ? '#10b981' : '#3b82f6'}`,
+                            background: otpSent ? 'rgba(16,185,129,0.12)' : 'rgba(59,130,246,0.15)',
+                            color: otpSent ? '#34d399' : '#60a5fa',
+                            fontSize: 12, fontWeight: 700, cursor: otpSent ? 'default' : 'pointer',
+                            whiteSpace: 'nowrap', transition: 'all 0.2s', fontFamily: "'Inter', sans-serif",
+                            opacity: otpLoading ? 0.6 : 1
+                          }}
+                        >
+                          {otpLoading ? 'Sending...' : otpSent ? '✓ Sent' : 'Send OTP'}
+                        </button>
+                      </div>
+
+                      {/* OTP Input */}
+                      {otpSent && (
+                        <div className="input-group">
+                          <input
+                            type="text"
+                            className="custom-input"
+                            placeholder="Enter 6-digit OTP"
+                            maxLength={6}
+                            value={regOtp}
+                            onChange={e => setRegOtp(e.target.value.replace(/\D/g, ''))}
+                            style={{ textAlign: 'center', fontSize: 22, fontWeight: 800, letterSpacing: 8, fontFamily: 'monospace', paddingLeft: 20 }}
+                            required
+                          />
+                        </div>
+                      )}
+
+                      {/* Password */}
+                      <div className="input-group" style={{ position: 'relative' }}>
+                        <Lock size={20} className="input-icon" />
+                        <input type={showPass ? "text" : "password"} className="custom-input" placeholder="Password (min 8 chars)" value={regPass} onChange={e => setRegPass(e.target.value)} required />
+                        <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', padding: 4 }}>
+                          {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+
+                      {/* Confirm Password */}
+                      <div className="input-group" style={{ position: 'relative', marginBottom: 0 }}>
+                        <Lock size={20} className="input-icon" />
+                        <input type={showConfirmPass ? "text" : "password"} className="custom-input" placeholder="Confirm Password" value={regConfirmPass} onChange={e => setRegConfirmPass(e.target.value)} required />
+                        <button type="button" onClick={() => setShowConfirmPass(p => !p)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', padding: 4 }}>
+                          {showConfirmPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+
+                      <button type="submit" className="auth-btn" disabled={regLoading || !otpSent}
+                        style={{ marginTop: 20, background: regLoading || !otpSent ? 'linear-gradient(135deg,#475569,#334155)' : 'linear-gradient(135deg,#6366f1,#4f46e5)', boxShadow: '0 8px 20px rgba(99,102,241,0.3)' }}
+                      >
+                        {regLoading ? 'Creating Account...' : <><Sparkles size={18} /> Create Account</>}
+                      </button>
+
+                      <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0 14px', gap: 16 }}>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 700 }}>OR SIGN UP WITH</span>
+                        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <GoogleLogin onSuccess={handleGoogleSuccess} onError={handleGoogleError} theme="filled_black" shape="pill" width={380} text="signup_with" />
+                      </div>
+                    </form>
+                    <div className="footer-nav">
+                      <button className="text-btn" onClick={() => resetForm("plans")} style={{ color: "rgba(255,255,255,0.7)" }}>
+                        <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Back to Plans
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
 
