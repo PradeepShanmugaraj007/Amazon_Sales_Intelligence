@@ -147,7 +147,8 @@ def process_data(rows):
     
     byState = {}
     for r in shipments:
-        st = r.get("Ship To State") or "Unknown"
+        stRaw = r.get("Ship To State") or r.get("Bill To State") or r.get("State") or "Unknown"
+        st = str(stRaw).upper().strip()
         if st not in byState:
             byState[st] = {"state": st, "revenue": 0, "orders": 0, "units": 0, "igst": 0}
         byState[st]["revenue"] += safe_float(r.get("Invoice Amount"))
@@ -155,7 +156,7 @@ def process_data(rows):
         byState[st]["units"] += safe_float(r.get("Quantity"))
         byState[st]["igst"] += safe_float(r.get("Igst Tax"))
         
-    stateList = sorted(list(byState.values()), key=lambda x: x["revenue"], reverse=True)
+    stateList = sorted([s for s in byState.values() if s["revenue"] > 0 or s["orders"] > 0], key=lambda x: x["revenue"], reverse=True)
     
     tax = {
         "cgst": sum(safe_float(r.get("Cgst Tax")) for r in shipments),

@@ -221,7 +221,13 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
       sessionStorage.setItem("siq_plan_status", JSON.stringify(data.plan_status || {}));
       localStorage.setItem("userEmail", data.user.email);
       setRegMsg("🎉 Account created! Welcome, " + data.user.name + "!");
-      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats, data.plan_status, "demo"), 1000);
+      setTimeout(() => {
+        if (data.user.plan === "none") {
+          setView("plans");
+        } else {
+          onLogin("user", data.user.plan, data.user.usageStats, data.plan_status, "demo");
+        }
+      }, 1000);
     } catch { setRegErr("Could not reach server."); setRegLoading(false); }
   };
 
@@ -264,7 +270,13 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
       sessionStorage.setItem("siq_plan_status", JSON.stringify(data.plan_status || {}));
       localStorage.setItem("userEmail", data.user.email);
       setMsg("Welcome back, " + data.user.name + "!");
-      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats, data.plan_status), 800);
+      setTimeout(() => {
+        if (data.user.plan === "none") {
+          setView("plans");
+        } else {
+          onLogin("user", data.user.plan, data.user.usageStats, data.plan_status);
+        }
+      }, 800);
     } catch {
       setErr("Unable to reach the server. Make sure the backend is running.");
       setIsLoading(false);
@@ -363,7 +375,13 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
       sessionStorage.setItem("siq_plan_status", JSON.stringify(data.plan_status || {}));
       localStorage.setItem("userEmail", data.user.email);
       setMsg("Welcome, " + data.user.name + "!");
-      setTimeout(() => onLogin("user", data.user.plan, data.user.usageStats, data.plan_status), 800);
+      setTimeout(() => {
+        if (data.user.plan === "none") {
+          setView("plans");
+        } else {
+          onLogin("user", data.user.plan, data.user.usageStats, data.plan_status);
+        }
+      }, 800);
     } catch (e) {
       setErr("Google authentication failed. Please try again.");
       setIsLoading(false);
@@ -581,7 +599,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
                       <button
                         onClick={async () => {
                           try {
-                            const res = await fetch('/api/auth/bypass-login', {
+                            const res = await fetch('/api/v1/auth/bypass-login', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ plan: plan.id })
