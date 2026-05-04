@@ -284,12 +284,10 @@ export const processData = (rows) => {
   // ── State List ───────────────────────────────────────────────────────────
   const byState = {};
   const byCity = {};
-  INDIAN_STATES.forEach(s => {
-    byState[s] = { state: s, revenue: 0, orders: 0, units: 0, igst: 0 };
-  });
 
   shipments.forEach(r => {
-    let st = r["Ship To State"] || r["Bill To State"] || r["State"] || "Unknown";
+    let stRaw = r["Ship To State"] || r["Bill To State"] || r["State"] || "Unknown";
+    let st = String(stRaw).toUpperCase().trim();
     let ct = r["Ship To City"] || r["Bill To City"] || r["City"] || "Unknown";
     
     if (!byState[st]) byState[st] = { state: st, revenue: 0, orders: 0, units: 0, igst: 0 };
@@ -303,7 +301,7 @@ export const processData = (rows) => {
     byCity[ct].revenue += Number(r["Invoice Amount"]) || 0;
     byCity[ct].orders += 1;
   });
-  const stateList = Object.values(byState).sort((a, b) => b.revenue - a.revenue);
+  const stateList = Object.values(byState).filter(s => s.revenue > 0 || s.orders > 0).sort((a, b) => b.revenue - a.revenue);
   const cityList = Object.values(byCity).sort((a, b) => b.revenue - a.revenue).slice(0, 20);
 
   // ── Tax ──────────────────────────────────────────────────────────────────
