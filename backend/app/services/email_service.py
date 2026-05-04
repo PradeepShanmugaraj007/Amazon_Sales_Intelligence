@@ -122,9 +122,52 @@ def get_reset_email_html(name, new_password):
 </html>
 """
 
-def get_expiry_warning_email_html(name, plan, expiry_date):
+def get_promotional_email_html(name: str):
+    return f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:'Inter', sans-serif;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table width="100%" max-width="600" style="max-width:600px;background-color:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#1e3a8a,#3b82f6);padding:60px 40px;text-align:center;">
+              <div style="font-size:56px;margin-bottom:20px;">📈</div>
+              <h1 style="color:#ffffff;margin:0;font-size:28px;font-weight:900;letter-spacing:-0.5px;line-height:1.2;">Transform Your Data Into Actionable Intelligence</h1>
+              <p style="color:rgba(255,255,255,0.7);margin:12px 0 0;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Enterprise-Grade Analytics</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:50px 40px;">
+              <h2 style="color:#1e293b;font-size:22px;margin:0 0 16px;font-weight:800;">Hello {name},</h2>
+              <p style="color:#475569;font-size:16px;line-height:1.7;margin:0 0 20px;">
+                You've taken the first step towards transforming your e-commerce business. Did you know that sellers using SellerIQ Pro experience on average a <strong>25% increase in operational efficiency</strong> and a <strong>15% reduction in fraudulent returns</strong> within the first quarter?
+              </p>
+              <p style="color:#475569;font-size:16px;line-height:1.7;margin:0 0 40px;">
+                Don't leave your sales data to guesswork. Our advanced AI-driven dashboards provide real-time SKU velocity, return rate analysis, and revenue forecasting to keep you ahead of the competition.
+              </p>
+              
+              <a href="http://localhost:5173/?action=get-started#login" style="display:block;text-align:center;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#ffffff;padding:22px;border-radius:18px;text-decoration:none;font-weight:900;font-size:17px;box-shadow:0 12px 30px rgba(37,99,235,0.3);">
+                ⚡ Choose Your Plan Now
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+def get_expiry_warning_email_html(name, plan, expiry_date, days_left=None):
     plan_colors = {"starter": "#64748b", "pro": "#a855f7", "enterprise": "#f59e0b"}
     color = plan_colors.get(plan.lower(), "#3b82f6")
+    days_text = f" in {days_left} days" if days_left is not None else ""
     return f"""
 <!DOCTYPE html>
 <html>
@@ -147,7 +190,7 @@ def get_expiry_warning_email_html(name, plan, expiry_date):
             <td style="padding:50px 40px;">
               <h2 style="color:#1e293b;font-size:22px;margin:0 0 16px;font-weight:800;">Hello {name},</h2>
               <p style="color:#475569;font-size:16px;line-height:1.7;margin:0 0 40px;">
-                Our systems indicate that your <strong>{plan.upper()}</strong> intelligence subscription is approaching its term limit. To prevent any disruption to your risk modeling and regional analytics, a renewal cycle must be initiated.
+                Our systems indicate that your <strong>{plan.upper()}</strong> intelligence subscription is expiring{days_text}. To prevent any disruption to your risk modeling and regional analytics, a renewal cycle must be initiated.
               </p>
               
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#fffaf5;border-radius:20px;border:1px solid #ffedd5;margin-bottom:40px;">

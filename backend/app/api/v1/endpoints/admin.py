@@ -74,24 +74,41 @@ async def send_expiry_warnings(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User))
     users = result.scalars().all()
     
+    from app.services.email_service import send_email, get_expiry_warning_email_html, get_promotional_email_html
+    
     count = 0
     now = datetime.utcnow()
     for u in users:
+        # 1. Users with no plan (plan == 'none' or 'demo')
+        if not u.plan or u.plan.lower() in ["none", "demo"]:
+            try:
+                sent = send_email(
+                    u.email,
+                    "Elevate Your E-Commerce Strategy with SellerIQ Pro",
+                    get_promotional_email_html(u.name)
+                )
+                if sent: count += 1
+            except Exception as e:
+                print(f"Failed to send promo email to {u.email}: {e}")
+            continue
+
+        # 2. Users with a purchased plan and an expiry date
         if u.expiry_date:
             try:
                 delta = u.expiry_date - now
+                days = round(delta.total_seconds() / 86400)
                 
-                # Check if expiring within 3 days
-                if 0 <= delta.total_seconds() <= 3 * 24 * 3600:
-                    readable_date = u.expiry_date.strftime("%Y-%m-%d %H:%M")
+                # Check for 7, 3, or 1 days left
+                if days in [7, 3, 1]:
+                    readable_date = u.expiry_date.strftime("%Y-%m-%d")
                     sent = send_email(
                         u.email,
-                        "Action Required: Your SellerIQ Pro Plan is Expiring",
-                        get_expiry_warning_email_html(u.name, u.plan, readable_date)
+                        f"Action Required: {days} Days Left on Your SellerIQ Pro Plan",
+                        get_expiry_warning_email_html(u.name, u.plan, readable_date, days)
                     )
                     if sent: count += 1
             except Exception as e:
-                print(f"Failed to send email to {u.email}: {e}")
+                print(f"Failed to send expiry email to {u.email}: {e}")
                 continue
     
     return {"success": True, "emails_sent": count}

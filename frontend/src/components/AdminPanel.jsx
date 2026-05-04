@@ -319,9 +319,9 @@ const AdminPanel = ({ onLogout }) => {
                 onClick={async () => {
                    setIsLoading(true);
                    try {
-                     const res = await fetch('/api/admin/send-expiry-warnings', { method: 'POST' });
+                     const res = await fetch('/api/v1/admin/send-expiry-warnings', { method: 'POST' });
                      const data = await res.json();
-                     setToast(`Successfully sent ${data.emails_sent} warning emails.`);
+                     setToast(`Successfully sent ${data.emails_sent} warning/promo emails.`);
                    } catch {
                      setToast("Failed to send warning emails.");
                    } finally {
