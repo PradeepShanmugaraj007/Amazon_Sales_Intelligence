@@ -90,9 +90,36 @@ async def analyze_report(
         if not all_parsed_rows:
             raise HTTPException(status_code=400, detail="No readable data found.")
 
-        # 4. Analysis
+        # 4. Deduplicate merged rows by Order Id
+        #    Keep the first occurrence of each unique (Order Id, Sku) pair.
+        #    Rows with no Order Id are always kept (they still count for tax totals).
+        raw_count = len(all_parsed_rows)
+        seen_keys: set = set()
+        deduped_rows = []
+        for row in all_parsed_rows:
+            order_id = str(row.get("Order Id") or "").strip()
+            sku      = str(row.get("Sku")      or "").strip()
+            if order_id:
+                key = f"{order_id}||{sku}"
+                if key in seen_keys:
+                    continue          # duplicate — skip it
+                seen_keys.add(key)
+            deduped_rows.append(row)
+
+        all_parsed_rows = deduped_rows
+        dedup_removed   = raw_count - len(all_parsed_rows)
+
+        # 5. Analysis
         analysis_results = advanced_process_data(all_parsed_rows)
         intelligence_payload = analysis_results.get("analysis", {})
+        # Expose merge metadata to the frontend
+        intelligence_payload["merge_stats"] = {
+            "files_count": len(files),
+            "total_raw_rows": raw_count,
+            "duplicates_removed": dedup_removed,
+            "final_rows": len(all_parsed_rows),
+        }
+
         intelligence_payload["forecast"] = generate_detailed_forecast(intelligence_payload.get("dailySales", []))
         intelligence_payload["insights"] = generate_business_insights(intelligence_payload)
 

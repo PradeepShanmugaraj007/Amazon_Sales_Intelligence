@@ -62,6 +62,7 @@ const Sidebar = ({
     { id: "overview",  label: "Dashboard",       icon: "📊" },
     { id: "sku",       label: "Product Analysis", icon: "🏷️" },
     { id: "regions",   label: "Regions",          icon: "🗺️" },
+    { id: "insights",  label: "AI Insights",      icon: "🧠" },
     { id: "tax",       label: isB2C ? "Sales Health" : "Financials", icon: isB2C ? "💖" : "🧾" },
   ];
 

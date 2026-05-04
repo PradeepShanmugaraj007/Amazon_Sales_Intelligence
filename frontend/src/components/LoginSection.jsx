@@ -273,19 +273,34 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
 
 
   // ── Admin Login ───────────────────────────────────────────────────────────
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setErr("");
-    setTimeout(() => {
-      if (user === "admin@selleriq.pro" && pass === "password") {
-        onLogin("admin");
-      } else {
-
-        setErr("Invalid internal database credentials. Access denied.");
+    try {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user, password: pass })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErr(data.detail || "Invalid credentials. Access denied.");
         setIsLoading(false);
+        return;
       }
-    }, 800);
+      if (!data.user?.is_admin) {
+        setErr("Access denied. This account does not have admin privileges.");
+        setIsLoading(false);
+        return;
+      }
+      sessionStorage.setItem("siq_auth_token", data.access_token);
+      sessionStorage.setItem("siq_user_name", data.user.name);
+      onLogin("admin");
+    } catch {
+      setErr("Unable to reach the server. Make sure the backend is running.");
+      setIsLoading(false);
+    }
   };
 
   // ── Forgot Password ───────────────────────────────────────────────────────

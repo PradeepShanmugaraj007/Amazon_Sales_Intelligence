@@ -132,6 +132,7 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             "name": user.name,
             "plan": user.plan,
             "email": user.email,
+            "is_admin": user.is_admin or False,
             "plan_expiry": user.expiry_date.isoformat() if user.expiry_date else None,
             "usageStats": {
                 "used": user.monthly_uploads or 0,

@@ -23,6 +23,7 @@ import AdminPanel from "./components/AdminPanel";
 import { analyzeReport } from "./api";
 import { KpiCard, SectionHeader, Badge, InsightCard } from "./components/UIComponents";
 import FraudAnalysis, { CriticalRiskCard } from "./components/RiskAnalysis";
+import InsightsPanel from "./components/InsightsPanel";
 import { processData, fmt, pct, colorFor, BRAND, ACCENT, GREEN, RED, PURPLE, TEAL, INDIAN_STATES } from "./utils";
 import { AppProvider, useAppContext } from "./context/AppContext";
 
@@ -119,14 +120,14 @@ const UpgradeBanner = ({ feature, requiredPlan, color, icon }) => (
 );
 
 // ─── MAIN DASHBOARD ─────────────────────────────────────────────────────────
-const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudData, onReset, isDemoMode, onLogout, usageStats }) => {
+const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudData, analysis, onReset, isDemoMode, onLogout, usageStats }) => {
   const { dataset, updateDataset } = useAppContext();
 
   // Plan-based tab access rules
   const planOrder = { starter: 0, pro: 1, enterprise: 2 };
   const canAccess = (minPlan) => (planOrder[String(activePlan).toLowerCase()] || 0) >= (planOrder[minPlan] || 0);
 
-  const ALL_TABS = ["overview", "sku", "regions", "tax", "fraud", "forecast", "saas", "about", "support"];
+  const ALL_TABS = ["overview", "sku", "regions", "insights", "tax", "fraud", "forecast", "saas", "about", "support"];
   const LOCKED_TABS = [
     ...(canAccess('pro') ? [] : ['fraud', 'forecast']),
     ...(canAccess('enterprise') ? [] : ['saas']),
@@ -556,6 +557,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
                 activeTab === "regions" ? "Regional Fulfillment Map" :
                 activeTab === "tax" ? "Tax Class Distribution" :
                 activeTab === "fraud" ? "Risk & Scam Detection" :
+                activeTab === "insights" ? "AI Intelligence Insights" :
                 activeTab === "forecast" ? "Revenue Projections" :
                 activeTab === "saas" ? "SaaS Integration Hub" :
                 activeTab === "about" ? "About SellerIQ Pro" :
@@ -674,7 +676,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
           </div>
         </div>
 
-        {!isExporting && activeTab !== "fraud" && activeTab !== "saas" && activeTab !== "about" && activeTab !== "support" && (
+        {!isExporting && activeTab !== "fraud" && activeTab !== "saas" && activeTab !== "about" && activeTab !== "support" && activeTab !== "insights" && (
           <div style={styles.filterBar}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Period:</span>
@@ -774,20 +776,34 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
               </div>
             </div>
 
-            {/* AI INTELLIGENCE & DEEP INSIGHTS */}
-            <div style={{ marginTop: 40, marginBottom: 40 }}>
-              <SectionHeader title="🧠 AI Intelligence & Deep Insights" sub="Neural engine analysis of transactional metadata" />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
-                {(stats.insights || []).map((ins, i) => (
-                  <InsightCard key={i} title={ins.title} body={ins.text} icon={ins.type === 'warning' ? '⚠️' : '💡'} color={ins.type === 'warning' ? RED : ins.type === 'success' ? GREEN : BRAND} />
-                ))}
+            {/* AI INTELLIGENCE INSIGHTS — inline summary on overview */}
+            {analysis?.insights && analysis.insights.length > 0 && (
+              <div style={{ marginTop: 40, marginBottom: 40 }}>
+                <InsightsPanel insights={(analysis.insights || []).slice(0, 6)} />
+                {analysis.insights.length > 6 && (
+                  <div style={{ textAlign: 'center', marginTop: 12 }}>
+                    <button
+                      onClick={() => setActiveTab('insights')}
+                      style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: '#6366f1', padding: '10px 28px', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                    >
+                      View All {analysis.insights.length} Insights →
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </>
         )}
 
         {(activeTab === "regions" || isExporting) && stats && (
           <RegionAnalysis stats={stats} styles={styles} isExporting={isExporting} />
+        )}
+
+        {/* DEDICATED INSIGHTS TAB */}
+        {activeTab === "insights" && (
+          <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
+            <InsightsPanel insights={analysis?.insights || []} />
+          </div>
         )}
 
         {(activeTab === "fraud" || isExporting) && (
@@ -1434,26 +1450,38 @@ function AppContent() {
   ) : null;
 
   // ── MAIN upload handler (authenticated users only, never demo) ───────────
-  const handleFileSelection = async (file) => {
-    if (!file || ingestion.loading) return;
-    setIngestion({ loading: true, msg: "Initializing engine...", progress: 5 });
+  const handleFileSelection = async (filesInput) => {
+    if (!filesInput || ingestion.loading) return;
+    // Accept both a single File and an array of Files
+    const files = Array.isArray(filesInput) ? filesInput : [filesInput];
+    if (files.length === 0) return;
+
+    const label = files.length === 1
+      ? files[0].name
+      : `${files[0].name} + ${files.length - 1} more file${files.length > 2 ? 's' : ''}`;
+
+    setIngestion({ loading: true, msg: `Uploading ${files.length} file${files.length > 1 ? 's' : ''}…`, progress: 5 });
     try {
-      const res = await analyzeReport(file, (pct) => {
-        setIngestion(prev => ({ ...prev, progress: Math.max(prev.progress, pct), msg: pct < 100 ? "Syncing data blocks..." : "Analyzing patterns..." }));
+      const res = await analyzeReport(files, (pct) => {
+        setIngestion(prev => ({
+          ...prev,
+          progress: Math.max(prev.progress, pct),
+          msg: pct < 40 ? `Merging ${files.length} datasets…` : pct < 80 ? 'Deduplicating rows…' : 'Analyzing patterns…'
+        }));
       });
-      setIngestion({ loading: false, msg: "Success", progress: 100 });
-      setState({ 
-        rawData: res.rawData, 
-        analysis: res.analysis, 
-        filename: file.name, 
-        source: res.source || 'amazon', 
-        session_id: res.session_id, 
-        fraud: res.analysis?.fraud 
+      setIngestion({ loading: false, msg: 'Success', progress: 100 });
+      setState({
+        rawData: res.rawData,
+        analysis: res.analysis,
+        filename: label,
+        source: res.source || 'amazon',
+        session_id: res.session_id,
+        fraud: res.analysis?.fraud
       });
       window.location.hash = 'overview';
     } catch (err) {
-      console.error("Ingestion failed:", err);
-      setIngestion({ loading: false, msg: err.response?.data?.detail || "Analysis failed. Ensure valid MTR format.", progress: 0 });
+      console.error('Ingestion failed:', err);
+      setIngestion({ loading: false, msg: err.response?.data?.detail || 'Analysis failed. Ensure valid MTR format.', progress: 0 });
     }
   };
 
@@ -1764,6 +1792,7 @@ function AppContent() {
           activePlan={activePlan} 
           session_id={state.session_id}
           fraudData={state.fraud}
+          analysis={state.analysis}
           isDemoMode={isDemoMode}
           usageStats={isDemoMode ? { used: demoUploadCount, limit: 1 } : usageStats}
           onReset={(fileOrEvent) => {
@@ -1772,7 +1801,7 @@ function AppContent() {
               setDemoBlockReason('limit_reached');
               return;
             }
-            if (fileOrEvent instanceof File) {
+            if (fileOrEvent instanceof File || Array.isArray(fileOrEvent)) {
               return handleFileSelection(fileOrEvent);
             }
             setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null, fraud: null });
