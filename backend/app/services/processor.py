@@ -36,7 +36,9 @@ def parse_uploaded_data(content: str):
             if lower_h in ['sku','itemsku','sellersku','asin','fnsku','productid','itemid']: mapped_key = 'Sku'
             if lower_h in ['quantity','qty','quantityshipped','unitsshipped','units','count']: mapped_key = 'Quantity'
             if lower_h in ['transactiontype','type','settlementaction','action','status']: mapped_key = 'Transaction Type'
-            if lower_h in ['itemprice','amount','principal','invoiceamount','totalprice','itemtotal','taxablevalue','totalvalue','price','revenue','total','value','cost']: mapped_key = 'Invoice Amount'
+            if lower_h in ['invoiceamount', 'itemprice', 'amount', 'principal', 'totalprice', 'itemtotal', 'taxablevalue', 'totalvalue', 'price', 'revenue', 'total', 'value', 'cost']:
+                if 'Invoice Amount' not in obj or lower_h == 'invoiceamount':
+                    mapped_key = 'Invoice Amount'
             if lower_h in ['invoicedate','date','posteddate','orderdate','settlementdate','createdat','timestamp','time']: mapped_key = 'Invoice Date'
             if lower_h in ['buyername','recipientname','customername','shiptoname','billtoname','customer','client']: mapped_key = 'Buyer Name'
             if lower_h in ['gstin','gstinnumber','buyergstin','taxid']: mapped_key = 'Gstin'
@@ -76,7 +78,7 @@ def process_data(rows):
         ttype = str(r.get("Transaction Type", "") or "").lower()
         desc = str(r.get("Item Description", "") or "").lower()
         
-        if ttype == "shipment" or ttype == "sale" or "order" in ttype:
+        if (ttype == "shipment" or ttype == "sale" or "order" in ttype) and "cancel" not in ttype:
             shipments.append(r)
             
         if "return" in ttype or "refund" in ttype or "adjustment" in ttype or "refund" in desc or "returned" in desc:
@@ -167,12 +169,12 @@ def process_data(rows):
     taxPie = [{"name": "IGST", "value": tax["igst"]}, {"name": "CGST", "value": tax["cgst"]}, {"name": "SGST", "value": tax["sgst"]}]
     taxPie = [t for t in taxPie if t["value"] > 0]
     
-    totalRevenue = sum(safe_float(r.get("Invoice Amount")) for r in shipments)
-    totalOrders = len(shipments)
+    totalRevenue = sum(safe_float(r.get("Invoice Amount")) for r in shipments) + sum(safe_float(r.get("Invoice Amount")) for r in returns)
+    totalOrders = len(shipments) + len(returns)
     totalDiscount = abs(sum(safe_float(r.get("Item Promo Discount")) for r in shipments))
     returnCount = len(returns)
     returnRate = f"{(returnCount / totalOrders * 100):.1f}" if totalOrders else "0"
-    avgOrderValue = totalRevenue / totalOrders if totalOrders else 0
+    avgOrderValue = totalRevenue / len(shipments) if shipments else 0
     fba = len([r for r in shipments if r.get("Fulfillment Channel") == "FBA"])
     mfn = len([r for r in shipments if r.get("Fulfillment Channel") == "MFN"])
     channelData = [{"name": "FBA", "value": fba}, {"name": "MFN", "value": mfn}]

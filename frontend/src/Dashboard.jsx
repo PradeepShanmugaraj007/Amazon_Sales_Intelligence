@@ -24,7 +24,7 @@ import { analyzeReport } from "./api";
 import { KpiCard, SectionHeader, Badge, InsightCard } from "./components/UIComponents";
 import FraudAnalysis, { CriticalRiskCard } from "./components/RiskAnalysis";
 import InsightsPanel from "./components/InsightsPanel";
-import { processData, fmt, pct, colorFor, BRAND, ACCENT, GREEN, RED, PURPLE, TEAL, INDIAN_STATES } from "./utils";
+import { processData, fmt, pct, colorFor, BRAND, ACCENT, GREEN, RED, PURPLE, TEAL, INDIAN_STATES, parseAmount } from "./utils";
 import { AppProvider, useAppContext } from "./context/AppContext";
 
 import ShopifyDashboard from "./components/ShopifyDashboard";
@@ -348,7 +348,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
           for (const alias of aliases) {
             const norm = alias.toLowerCase().replace(/[\s_/]/g, '');
             const key = rowKeys.find(k => k.toLowerCase().replace(/[\s_/]/g, '') === norm);
-            if (key !== undefined && r[key] !== undefined && r[key] !== "") return Number(r[key]) || 0;
+            if (key !== undefined && r[key] !== undefined && r[key] !== "") return parseAmount(r[key]);
           }
           return 0;
         };

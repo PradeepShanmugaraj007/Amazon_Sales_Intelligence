@@ -131,6 +131,14 @@ function parseDate(str) {
   return null;
 }
 
+export const parseAmount = (val) => {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return val;
+  const cleaned = String(val).replace(/[^0-9.-]+/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+};
+
 // ─── DESIGN SYSTEM TOKENS ──────────────────────────────────────────────────
 export const THEME = {
   palette: {
@@ -179,6 +187,7 @@ export const processData = (rows) => {
   // Shipments: Accept "Shipment", "Sale", or any order-like type
   const shipments = rowsSafe.filter(r => {
     const type = (r["Transaction Type"] || r["type"] || "").toLowerCase();
+    if (type.includes("cancel")) return false;
     return type === "shipment" || type === "sale" || type.includes("order") || type.includes("shipped");
   });
 
@@ -330,15 +339,15 @@ export const processData = (rows) => {
   ].filter(t => t.value > 0);
 
   // ── Totals ───────────────────────────────────────────────────────────────
-  const totalRevenue = shipments.reduce((s, r) => s + (Number(r["Invoice Amount"]) || 0), 0);
-  const totalOrders = shipments.length;
+  const totalRevenue = shipments.reduce((s, r) => s + parseAmount(r["Invoice Amount"]), 0) + returns.reduce((s, r) => s + parseAmount(r["Invoice Amount"]), 0);
+  const totalOrders = shipments.length + returns.length;
   const b2bOrders = shipments.filter(r => r["Gstin"] || r["GSTIN"] || r["Buyer Name"]?.includes("(B2B)")).length;
   const b2bPercentage = totalOrders ? (b2bOrders / totalOrders * 100).toFixed(1) : "0";
 
   const totalDiscount = Math.abs(shipments.reduce((s, r) => s + (Number(r["Item Promo Discount"]) || 0), 0));
   const returnCount = returns.length;
   const returnRate = totalOrders ? (returnCount / totalOrders * 100).toFixed(1) : "0";
-  const avgOrderValue = totalOrders ? totalRevenue / totalOrders : 0;
+  const avgOrderValue = shipments.length ? totalRevenue / shipments.length : 0;
   const fba = shipments.filter(r => (r["Fulfillment Channel"] || "").toUpperCase() === "FBA").length;
   const mfn = shipments.filter(r => (r["Fulfillment Channel"] || "").toUpperCase() === "MFN").length;
   const channelData = [{ name: "FBA", value: fba }, { name: "MFN", value: mfn }];

@@ -80,7 +80,9 @@ async def analyze_report(
                     if lower_h in ['orderid','ordernumber']: mapped_key = 'Order Id'
                     if lower_h in ['sku','asin']: mapped_key = 'Sku'
                     if lower_h in ['quantity','units']: mapped_key = 'Quantity'
-                    if lower_h in ['itemprice','amount','revenue']: mapped_key = 'Invoice Amount'
+                    if lower_h in ['invoiceamount', 'itemprice', 'amount', 'revenue']:
+                        if 'Invoice Amount' not in obj or lower_h == 'invoiceamount':
+                            mapped_key = 'Invoice Amount'
                     if lower_h in ['invoicedate','date']: mapped_key = 'Invoice Date'
                     if lower_h in ['gstin','buyerregistration']: mapped_key = 'Gstin'
                     
