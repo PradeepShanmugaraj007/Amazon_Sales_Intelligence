@@ -294,8 +294,11 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
     return d;
   }, [rawData, dateRange, skuFilter, stateFilter, startDate, endDate]);
 
-  const stats = useMemo(() => processData(filtered), [filtered]);
-
+  const stats = useMemo(() => {
+    const isFiltered = dateRange !== "all" || skuFilter !== "" || stateFilter !== "all" || startDate !== "" || endDate !== "";
+    if (!isFiltered && analysis) return analysis;
+    return processData(filtered);
+  }, [filtered, analysis, dateRange, skuFilter, stateFilter, startDate, endDate]);
   const chartData = useMemo(() => {
     if (!stats) return [];
     return chartView === "monthly" ? (stats.monthlySales || []).map(m => ({ ...m, name: m.month }))
@@ -762,45 +765,80 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         {(activeTab === "overview" || isExporting) && stats && (
           <>
             {isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 30, marginTop: 40, color: "#0f172a" }}>1. Executive Overview</h2>}
-            <div style={styles.grid6}>
-              <KpiCard label="Total Revenue" value={fmt(stats.totalRevenue)} icon={<Activity size={20} />} color={BRAND} trend={12.4} />
-              <KpiCard label="Order Velocity" value={stats.totalOrders} icon={<Package size={20} />} color={ACCENT} trend={8.2} />
-              <KpiCard label="Avg Order Value" value={fmt(stats.avgOrderValue)} icon={<Activity size={20} />} color={TEAL} trend={-1.5} />
-              <KpiCard label="Return Health" value={`${stats.returnRate}%`} icon={<RotateCcw size={20} />} color={RED} sub="Normal" trend={0.2} />
-              <KpiCard label="Tax Liability" value={fmt(stats.totalTax)} icon={<Shield size={20} />} color={GREEN} sub="Active" />
-              <KpiCard label="Sku Depth" value={stats.skuCount} icon={<Tag size={20} />} color={BRAND} sub="Diversified" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+              <KpiCard label="Gross Revenue" value={fmt(stats.grossRevenue)} icon={<Activity size={20} />} color={BRAND} />
+              <KpiCard label="Net Revenue" value={fmt(stats.netRevenue)} icon={<Activity size={20} />} color={ACCENT} />
+              <KpiCard label="Total Orders" value={stats.totalOrders} icon={<Package size={20} />} color={TEAL} />
+              <KpiCard label="Units Sold" value={stats.unitsSold} icon={<Package size={20} />} color={BRAND} />
+              
+              <KpiCard label="Avg Order Value" value={fmt(stats.avgOrderValue)} icon={<Tag size={20} />} color={GREEN} />
+              <KpiCard label="Total GST Collected" value={fmt(stats.totalTax)} icon={<Shield size={20} />} color={BRAND} />
+              <KpiCard label="Total Discount" value={fmt(stats.totalDiscount)} icon={<RotateCcw size={20} />} color={ACCENT} />
+              <KpiCard label="Refund Amount" value={fmt(stats.refundAmount)} icon={<RotateCcw size={20} />} color={RED} />
+              
+              <KpiCard label="Return Rate %" value={`${stats.returnRate}%`} icon={<AlertTriangle size={20} />} color={RED} />
+              <KpiCard label="Cancel Rate %" value={`${stats.cancelRate}%`} icon={<AlertTriangle size={20} />} color={RED} />
+              <KpiCard label="Shipping Revenue" value={fmt(stats.shippingRevenue)} icon={<Activity size={20} />} color={GREEN} />
+              <KpiCard label="Top State" value={stats.topState} icon={<MapPin size={20} />} color={BRAND} />
             </div>
-            <div className="dash-grid-2" style={{ marginBottom: 24 }}>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginBottom: 24 }}>
+              {/* Daily Revenue Line Chart */}
               <div style={styles.card}>
-                <SectionHeader title="Revenue Trajectory" sub="Performance across current reporting period" />
+                <SectionHeader title="Daily Revenue" sub="Shipment revenue over time" />
                 <ResponsiveContainer width="100%" height={280}>
-                   <AreaChart data={chartData}>
-                     <defs><linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={BRAND} stopOpacity={0.1}/><stop offset="95%" stopColor={BRAND} stopOpacity={0}/></linearGradient></defs>
+                   <LineChart data={chartData}>
                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                      <XAxis dataKey="name" tick={{fontSize: 10}} />
-                     <YAxis tick={{fontSize: 10}} tickFormatter={v => fmt(v)} />
-                     <Tooltip />
-                     <Area type="monotone" dataKey="revenue" stroke={BRAND} strokeWidth={3} fill="url(#gr)" />
-                   </AreaChart>
+                     <YAxis tick={{fontSize: 10}} tickFormatter={v => fmt(v)} width={80} />
+                     <Tooltip formatter={(val) => fmt(val)} />
+                     <Line type="monotone" dataKey="revenue" stroke={BRAND} strokeWidth={3} dot={false} />
+                   </LineChart>
                 </ResponsiveContainer>
               </div>
+
+              {/* Category Bar Chart */}
               <div style={styles.card}>
-                 <SectionHeader title="🏆 Top Products" sub={source === 'shopify' ? 'Top Converting Variants' : source === 'custom' ? 'Highest Volume SKUs' : 'Top 5 contributors'} />
-                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                   {(stats.skuList || []).slice(0, 5).map((s, i) => (
-                     <div key={s.sku} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700 }}>{s.sku}</div>
-                          <div style={{ height: 4, background: "#f1f5f9", borderRadius: 2, marginTop: 4 }}>
-                            <div style={{ height: "100%", background: colorFor(i), width: `${stats.skuList[0].revenue ? (s.revenue / stats.skuList[0].revenue * 100) : 0}%` }} />
-                          </div>
-                        </div>
-                        <div style={{ textAlign: "right", marginLeft: 16 }}>
-                          <div style={{ fontSize: 13, fontWeight: 800 }}>{fmt(s.revenue)}</div>
-                        </div>
-                     </div>
-                   ))}
-                 </div>
+                 <SectionHeader title="Category Breakdown" sub="Revenue by inferred category" />
+                 <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={stats.categoryBreakdown || []} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                      <XAxis type="number" tick={{fontSize: 10}} tickFormatter={v => fmt(v)} />
+                      <YAxis type="category" dataKey="name" width={110} tick={{fontSize: 10}} />
+                      <Tooltip formatter={(val) => fmt(val)} />
+                      <Bar dataKey="value" fill={ACCENT} radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                 </ResponsiveContainer>
+              </div>
+
+              {/* Payment Method Pie Chart */}
+              <div style={styles.card}>
+                 <SectionHeader title="Payment Methods" sub="Revenue mix by payment type" />
+                 <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie data={stats.paymentMethodMix || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                        {(stats.paymentMethodMix || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={colorFor(index)} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(val) => fmt(val)} />
+                      <Legend />
+                    </PieChart>
+                 </ResponsiveContainer>
+              </div>
+
+              {/* State Revenue Bar Chart */}
+              <div style={styles.card}>
+                 <SectionHeader title="Top 10 States" sub="Highest revenue driving regions" />
+                 <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={(stats.stateList || []).slice(0, 10)}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="state" tick={{fontSize: 10}} angle={-45} textAnchor="end" height={60} />
+                      <YAxis tick={{fontSize: 10}} tickFormatter={v => fmt(v)} width={80} />
+                      <Tooltip formatter={(val) => fmt(val)} />
+                      <Bar dataKey="revenue" fill={TEAL} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                 </ResponsiveContainer>
               </div>
             </div>
 

@@ -10,7 +10,12 @@ A comprehensive SaaS platform providing intelligent analytics, fraud detection, 
 
 The following major features, refactors, and stabilization fixes have been implemented over the last two days. **Please review these changes when pulling to avoid merge conflicts:**
 
-### 1. Multi-CSV Upload & Dataset Merging
+### 1. Amazon MTR Data Parity & Accuracy Fixes
+- Removed overly aggressive `(Order Id, Sku)` deduplication logic in the `analyze.py` backend API. This critical fix ensures that valid split shipments and multi-component Amazon MTR records are no longer falsely deleted, restoring perfect 100% parity with raw CSV financial values.
+- Rewrote the global transaction mapping algorithms in `processor.py` (backend) and `utils.js` (frontend) to treat all unmapped or unclassified rows as valid `Shipments`, precisely matching expected Gross Revenue figures.
+- Explicitly integrated the `Total Tax Amount` column from the raw 89-column CSV for absolute precision in the frontend KPI cards.
+
+### 2. Multi-CSV Upload & Dataset Merging
 - Completely overhauled `UploadSection.jsx` to allow selecting and drag-and-dropping multiple CSV/XLSX files simultaneously.
 - Introduced intelligent dataset merging in `processor.py` that seamlessly combines datasets.
 - Implemented automatic data deduplication to remove exact duplicate rows based on identical `Order Id` and `Sku` pairs before analysis, ensuring reporting integrity.

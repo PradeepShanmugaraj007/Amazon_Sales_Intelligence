@@ -176,21 +176,21 @@ export const INDIAN_STATES = [
 export const processData = (rows) => {
   const rowsSafe = (rows || []).filter(Boolean);
 
-  // Shipments: Accept "Shipment", "Sale", or any order-like type
-  const shipments = rowsSafe.filter(r => {
-    const type = (r["Transaction Type"] || r["type"] || "").toLowerCase();
-    return type === "shipment" || type === "sale" || type.includes("order") || type.includes("shipped");
-  });
-
-  // Returns: refund/return/adjustment rows with positive quantity
-  const returns = rowsSafe.filter(r => {
-    const type = (r["Transaction Type"] || r["type"] || "").toLowerCase();
+  const shipments = [];
+  const returns = [];
+  const cancels = [];
+  
+  rowsSafe.forEach(r => {
+    const ttype = (r["Transaction Type"] || r["type"] || "").toLowerCase();
     const desc = (r["Item Description"] || "").toLowerCase();
-    return type.includes("return") ||
-      type.includes("refund") ||
-      type.includes("adjustment") ||
-      desc.includes("refund") ||
-      desc.includes("returned");
+    
+    if (ttype.includes("cancel")) {
+      cancels.push(r);
+    } else if (ttype.includes("return") || ttype.includes("refund") || ttype.includes("adjustment") || desc.includes("refund") || desc.includes("returned")) {
+      returns.push(r);
+    } else {
+      shipments.push(r);
+    }
   });
 
   // ── Date Chronology Normalization ──────────────────────────────────────
@@ -321,7 +321,7 @@ export const processData = (rows) => {
     return acc;
   }, { cgst: 0, sgst: 0, igst: 0 });
 
-  tax.total = tax.cgst + tax.sgst + tax.igst;
+  tax.total = shipments.reduce((s, r) => s + (Number(r["Total Tax Amount"]) || 0), 0) || (tax.cgst + tax.sgst + tax.igst);
 
   const taxPie = [
     { name: "IGST", value: tax.igst },
@@ -329,19 +329,59 @@ export const processData = (rows) => {
     { name: "SGST", value: tax.sgst },
   ].filter(t => t.value > 0);
 
-  // ── Totals ───────────────────────────────────────────────────────────────
-  const totalRevenue = shipments.reduce((s, r) => s + (Number(r["Invoice Amount"]) || 0), 0);
+  // ── Category Inference & Mix ─────────────────────────────────────────────
+  const inferCategory = (desc) => {
+    const d = (desc || "").toLowerCase();
+    if (d.includes("remote") && ["tv", "samsung", "lg", "tcl", "sony", "hisense", "tata sky"].some(k => d.includes(k))) return "TV Remotes";
+    if (d.includes("remote") && ["ac", "air con", "daikin", "hitachi", "panasonic", "blue star", "voltas"].some(k => d.includes(k))) return "AC Remotes";
+    if (d.includes("remote") && ["fire", "firetv"].some(k => d.includes(k))) return "Streaming Remotes";
+    if (d.includes("smps") || d.includes("power supply")) return "Power Supplies";
+    if (d.includes("adapter") || d.includes("charger")) return "Adapters & Chargers";
+    if (d.includes("cctv") || d.includes("camera") || d.includes("surveillance")) return "CCTV & Security";
+    if (d.includes("back cover") || d.includes("phone case") || (d.includes("mobile") && d.includes("case"))) return "Mobile Cases";
+    if (d.includes("cable") || d.includes("usb") || d.includes("hdmi")) return "Cables";
+    if (d.includes("android tv") || d.includes("tv box") || d.includes("set top")) return "TV Boxes";
+    return "Other Electronics";
+  };
+
+  const byCategory = {};
+  const byPayment = {};
+  shipments.forEach(r => {
+    const cat = inferCategory(r["Item Description"]);
+    byCategory[cat] = (byCategory[cat] || 0) + (Number(r["Invoice Amount"]) || 0);
+    const pm = (r["Payment Method Code"] || r["payment_method"] || "Unknown").trim();
+    const pmKey = (!pm || pm.toLowerCase() === "nan") ? "Unknown" : pm;
+    byPayment[pmKey] = (byPayment[pmKey] || 0) + (Number(r["Invoice Amount"]) || 0);
+  });
+  
+  const categoryBreakdown = Object.entries(byCategory).map(([name, value]) => ({ name, value })).filter(x => x.value > 0).sort((a,b) => b.value - a.value);
+  const paymentMethodMix = Object.entries(byPayment).map(([name, value]) => ({ name, value })).filter(x => x.value > 0).sort((a,b) => b.value - a.value);
+
+  // ── Totals & KPIs ─────────────────────────────────────────────────────────
+  const grossRevenue = shipments.reduce((s, r) => s + (Number(r["Invoice Amount"]) || 0), 0);
+  const totalRevenue = grossRevenue; // For backward compatibility
+  const netRevenue = rowsSafe.reduce((s, r) => s + (Number(r["Invoice Amount"]) || 0), 0);
+  const unitsSold = shipments.reduce((s, r) => s + (Number(r["Quantity"]) || 0), 0);
   const totalOrders = shipments.length;
+  
+  const totalDiscount = Math.abs(shipments.reduce((s, r) => s + (Number(r["Item Promo Discount"]) || 0), 0));
+  const shippingRevenue = shipments.reduce((s, r) => s + (Number(r["Shipping Amount"] || r["Shipping Price"]) || 0), 0);
+  
+  const returnCount = returns.length;
+  const refundAmount = Math.abs(returns.reduce((s, r) => s + (Number(r["Invoice Amount"]) || 0), 0));
+  const cancelCount = cancels.length;
+
+  const returnRate = totalOrders ? (returnCount / totalOrders * 100).toFixed(1) : "0";
+  const cancelRate = totalOrders ? (cancelCount / totalOrders * 100).toFixed(1) : "0";
+  const avgOrderValue = totalOrders ? grossRevenue / totalOrders : 0;
+  
   const b2bOrders = shipments.filter(r => r["Gstin"] || r["GSTIN"] || r["Buyer Name"]?.includes("(B2B)")).length;
   const b2bPercentage = totalOrders ? (b2bOrders / totalOrders * 100).toFixed(1) : "0";
-
-  const totalDiscount = Math.abs(shipments.reduce((s, r) => s + (Number(r["Item Promo Discount"]) || 0), 0));
-  const returnCount = returns.length;
-  const returnRate = totalOrders ? (returnCount / totalOrders * 100).toFixed(1) : "0";
-  const avgOrderValue = totalOrders ? totalRevenue / totalOrders : 0;
   const fba = shipments.filter(r => (r["Fulfillment Channel"] || "").toUpperCase() === "FBA").length;
   const mfn = shipments.filter(r => (r["Fulfillment Channel"] || "").toUpperCase() === "MFN").length;
   const channelData = [{ name: "FBA", value: fba }, { name: "MFN", value: mfn }];
+  
+  const topState = stateList.length > 0 ? stateList[0].state : "Unknown";
 
   // ── Forecast ─────────────────────────────────────────────────────────────
   const lastN = dailySales.slice(-30);
@@ -450,11 +490,12 @@ export const processData = (rows) => {
 
   const stats = {
     summary: {
-      totalRevenue, totalOrders, totalDiscount, returnCount, returnRate, avgOrderValue,
+      totalRevenue, grossRevenue, netRevenue, totalOrders, unitsSold, totalDiscount, returnCount, returnRate, cancelCount, cancelRate, refundAmount, shippingRevenue, avgOrderValue,
       totalTax: tax.total, b2bOrders, b2bPercentage, 
       skuCount: skuList.length
     },
-    totalRevenue, totalOrders, totalDiscount, returnCount, returnRate, avgOrderValue,
+    totalRevenue, grossRevenue, netRevenue, totalOrders, unitsSold, totalDiscount, returnCount, returnRate, cancelCount, cancelRate, refundAmount, shippingRevenue, avgOrderValue, topState,
+    categoryBreakdown, paymentMethodMix,
     totalTax: tax.total, b2bOrders, b2bPercentage,
     dailySales, weeklySales, monthlySales, skuList, stateList, cityList, tax, taxPie,
     forecast7, forecast30, forecast90, last7, last30, last90, skuVelocity, channelData, days,
