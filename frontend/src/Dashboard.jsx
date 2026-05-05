@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -24,7 +24,7 @@ import { analyzeReport } from "./api";
 import { KpiCard, SectionHeader, Badge, InsightCard } from "./components/UIComponents";
 import FraudAnalysis, { CriticalRiskCard } from "./components/RiskAnalysis";
 import InsightsPanel from "./components/InsightsPanel";
-import { processData, fmt, pct, colorFor, BRAND, ACCENT, GREEN, RED, PURPLE, TEAL, INDIAN_STATES } from "./utils";
+import { processData, fmt, pct, colorFor, BRAND, ACCENT, GREEN, RED, PURPLE, TEAL, INDIAN_STATES, parseAmount } from "./utils";
 import { AppProvider, useAppContext } from "./context/AppContext";
 
 import ShopifyDashboard from "./components/ShopifyDashboard";
@@ -351,7 +351,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
           for (const alias of aliases) {
             const norm = alias.toLowerCase().replace(/[\s_/]/g, '');
             const key = rowKeys.find(k => k.toLowerCase().replace(/[\s_/]/g, '') === norm);
-            if (key !== undefined && r[key] !== undefined && r[key] !== "") return Number(r[key]) || 0;
+            if (key !== undefined && r[key] !== undefined && r[key] !== "") return parseAmount(r[key]);
           }
           return 0;
         };
@@ -1428,6 +1428,13 @@ function AppContent() {
     try { return JSON.parse(sessionStorage.getItem('siq_usage_stats') || '{"used":0,"limit":10}'); } catch { return { used: 0, limit: 10 }; }
   });
 
+  // ── Refs for stable navigation logic (avoids closure stale state) ──────
+  const activePlanRef = useRef(activePlan);
+  const userRoleRef = useRef(userRole);
+
+  useEffect(() => { activePlanRef.current = activePlan; }, [activePlan]);
+  useEffect(() => { userRoleRef.current = userRole; }, [userRole]);
+
   const handleGoogleSuccess = async (response) => {
     try {
       // Instead of logging in immediately, we just want to fetch user info to prefill registration
@@ -1640,6 +1647,12 @@ function AppContent() {
           }
         }}
         onLogin={(role, plan, usageStats, initialPlanStatus, targetHash) => {
+          // Update refs and session storage IMMEDIATELY to prevent race conditions during hash navigation
+          userRoleRef.current = role || 'user';
+          activePlanRef.current = plan || 'starter';
+          sessionStorage.setItem('siq_role', role || 'user');
+          sessionStorage.setItem('siq_plan', plan || 'starter');
+          
           setUserRole(role || 'user');
           if (plan) setActivePlan(plan);
           if (initialPlanStatus) setPlanStatus(initialPlanStatus);
@@ -1675,7 +1688,8 @@ function AppContent() {
          setShowDemoModal(false);
          sessionStorage.clear();
       } else if (hash === 'upload') {
-          if (activePlan === 'demo' || !userRole) {
+          // Use refs to ensure we have the absolute latest state during login transition
+          if (activePlanRef.current === 'demo' || !userRoleRef.current) {
             window.location.hash = 'demo';
             return;
           }
@@ -1703,7 +1717,7 @@ function AppContent() {
     }
     
     return () => window.removeEventListener('hashchange', handleNavigation);
-  }, [userRole]);
+  }, [userRole, activePlan]);
 
   // Demo Completion Logic: Trigger modal after 1 minute of viewing analysis
   useEffect(() => {
@@ -1737,9 +1751,9 @@ function AppContent() {
   }
 
   // Logic: Show login if not logged in AND NOT currently in a guest trial flow
-  const isGuestTryingFree = !userRole && (isDemoMode || window.location.hash.toLowerCase().includes('upload') || window.location.hash.toLowerCase().includes('demo'));
+  const isGuestTryingFree = !userRoleRef.current && (isDemoMode || window.location.hash.toLowerCase().includes('upload') || window.location.hash.toLowerCase().includes('demo'));
   
-  if ((!userRole && !isGuestTryingFree) || (userRole === 'user' && activePlan === 'none')) {
+  if ((!userRoleRef.current && !isGuestTryingFree) || (userRoleRef.current === 'user' && activePlanRef.current === 'none')) {
     // Hide background login if the demo limit modal is already showing (prevents double Google init)
     if (demoBlockReason) return demoLimitOverlay;
 
@@ -1747,6 +1761,12 @@ function AppContent() {
       initialView={activePlan === 'none' ? 'plans' : (expiredSession ? 'expired_redirect' : loginView)}
       prefillData={prefillData}
       onLogin={(role, plan, usageStats, initialPlanStatus, targetHash) => {
+        // Update refs and session storage IMMEDIATELY to prevent race conditions during hash navigation
+        userRoleRef.current = role || 'user';
+        activePlanRef.current = plan || 'starter';
+        sessionStorage.setItem('siq_role', role || 'user');
+        sessionStorage.setItem('siq_plan', plan || 'starter');
+
         setUserRole(role || 'user');
         if (plan) setActivePlan(plan);
         if (usageStats) {

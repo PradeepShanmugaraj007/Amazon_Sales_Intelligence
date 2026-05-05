@@ -90,21 +90,9 @@ async def analyze_report(
         if not all_parsed_rows:
             raise HTTPException(status_code=400, detail="No readable data found.")
 
-        # 4. Do not deduplicate Amazon MTR rows! Each row represents a valid financial transaction or split shipment.
-        raw_count = len(all_parsed_rows)
-        dedup_removed = 0
-
-        # 5. Analysis
+        # 4. Analysis
         analysis_results = advanced_process_data(all_parsed_rows)
         intelligence_payload = analysis_results.get("analysis", {})
-        # Expose merge metadata to the frontend
-        intelligence_payload["merge_stats"] = {
-            "files_count": len(files),
-            "total_raw_rows": raw_count,
-            "duplicates_removed": dedup_removed,
-            "final_rows": len(all_parsed_rows),
-        }
-
         intelligence_payload["forecast"] = generate_detailed_forecast(intelligence_payload.get("dailySales", []))
         intelligence_payload["insights"] = generate_business_insights(intelligence_payload)
 

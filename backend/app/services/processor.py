@@ -36,7 +36,9 @@ def parse_uploaded_data(content: str):
             if lower_h in ['sku','itemsku','sellersku','asin','fnsku','productid','itemid']: mapped_key = 'Sku'
             if lower_h in ['quantity','qty','quantityshipped','unitsshipped','units','count']: mapped_key = 'Quantity'
             if lower_h in ['transactiontype','type','settlementaction','action','status']: mapped_key = 'Transaction Type'
-            if lower_h in ['itemprice','amount','principal','invoiceamount','totalprice','itemtotal','taxablevalue','totalvalue','price','revenue','total','value','cost']: mapped_key = 'Invoice Amount'
+            if lower_h in ['invoiceamount', 'itemprice', 'amount', 'principal', 'totalprice', 'itemtotal', 'taxablevalue', 'totalvalue', 'price', 'revenue', 'total', 'value', 'cost']:
+                if 'Invoice Amount' not in obj or lower_h == 'invoiceamount':
+                    mapped_key = 'Invoice Amount'
             if lower_h in ['invoicedate','date','posteddate','orderdate','settlementdate','createdat','timestamp','time']: mapped_key = 'Invoice Date'
             if lower_h in ['buyername','recipientname','customername','shiptoname','billtoname','customer','client']: mapped_key = 'Buyer Name'
             if lower_h in ['gstin','gstinnumber','buyergstin','taxid']: mapped_key = 'Gstin'

@@ -131,6 +131,14 @@ function parseDate(str) {
   return null;
 }
 
+export const parseAmount = (val) => {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return val;
+  const cleaned = String(val).replace(/[^0-9.-]+/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+};
+
 // ─── DESIGN SYSTEM TOKENS ──────────────────────────────────────────────────
 export const THEME = {
   palette: {
