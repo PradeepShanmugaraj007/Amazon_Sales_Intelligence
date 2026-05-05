@@ -72,9 +72,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
     <div style={{ padding: '2rem' }}>
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-500/10 rounded-2xl">
-            <Activity size={24} className="text-indigo-400" />
-          </div>
+          <img src="/favicon.png" alt="Logo" style={{ width: 44, height: 44, borderRadius: 12 }} />
           <div>
             <div className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Enterprise Intelligence</div>
             <div className="text-xl font-black">Demo Edition Hub</div>
@@ -220,7 +218,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
 
       <header>
         <div className="logo">
-          <img src="/selleriq-icon.png" alt="SellerIQ Pro Icon" className="logo-icon" />
+          <img src="/favicon.png" alt="SellerIQ Pro Logo" className="logo-icon" style={{ borderRadius: '8px', width: '36px', height: '36px' }} />
           <div className="logo-wordmark">
             <div className="logo-name">SellerIQ <span>Pro</span></div>
             <div className="logo-tagline">Commerce Intelligence</div>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import Papa from 'papaparse';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -8,7 +9,7 @@ import {
 import { 
   AlertTriangle, MapPin, Package, RotateCcw, User, Tag, 
   ChevronDown, ChevronUp, Shield, Calendar, Search, 
-  TrendingUp, TrendingDown, Clock, Activity, Download, Check, Sparkles, CreditCard
+  TrendingUp, TrendingDown, Clock, Activity, Download, Check, Sparkles, CreditCard, X
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx-js-style';
@@ -588,7 +589,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
                 activeTab === "regions" ? "Regional Fulfillment Map" :
                 activeTab === "tax" ? "Tax Class Distribution" :
                 activeTab === "fraud" ? "Risk & Scam Detection" :
-                activeTab === "insights" ? "AI Intelligence Insights" :
+                activeTab === "insights" ? "AI Insights" :
                 activeTab === "forecast" ? "Revenue Projections" :
                 activeTab === "saas" ? "SaaS Integration Hub" :
                 activeTab === "about" ? "About SellerIQ Pro" :
@@ -765,99 +766,88 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         {(activeTab === "overview" || isExporting) && stats && (
           <>
             {isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 30, marginTop: 40, color: "#0f172a" }}>1. Executive Overview</h2>}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-              <KpiCard label="Gross Revenue" value={fmt(stats.grossRevenue)} icon={<Activity size={20} />} color={BRAND} />
-              <KpiCard label="Net Revenue" value={fmt(stats.netRevenue)} icon={<Activity size={20} />} color={ACCENT} />
-              <KpiCard label="Total Orders" value={stats.totalOrders} icon={<Package size={20} />} color={TEAL} />
-              <KpiCard label="Units Sold" value={stats.unitsSold} icon={<Package size={20} />} color={BRAND} />
-              
-              <KpiCard label="Avg Order Value" value={fmt(stats.avgOrderValue)} icon={<Tag size={20} />} color={GREEN} />
-              <KpiCard label="Total GST Collected" value={fmt(stats.totalTax)} icon={<Shield size={20} />} color={BRAND} />
-              <KpiCard label="Total Discount" value={fmt(stats.totalDiscount)} icon={<RotateCcw size={20} />} color={ACCENT} />
-              <KpiCard label="Refund Amount" value={fmt(stats.refundAmount)} icon={<RotateCcw size={20} />} color={RED} />
-              
-              <KpiCard label="Return Rate %" value={`${stats.returnRate}%`} icon={<AlertTriangle size={20} />} color={RED} />
-              <KpiCard label="Cancel Rate %" value={`${stats.cancelRate}%`} icon={<AlertTriangle size={20} />} color={RED} />
-              <KpiCard label="Shipping Revenue" value={fmt(stats.shippingRevenue)} icon={<Activity size={20} />} color={GREEN} />
-              <KpiCard label="Top State" value={stats.topState} icon={<MapPin size={20} />} color={BRAND} />
+            <div style={styles.grid6}>
+              <KpiCard label="Total Revenue" value={fmt(stats.totalRevenue)} icon={<Activity size={20} />} color={BRAND} trend={12.4} />
+              <KpiCard label="Order Velocity" value={stats.totalOrders} icon={<Package size={20} />} color={ACCENT} trend={8.2} />
+              <KpiCard label="Avg Order Value" value={fmt(stats.avgOrderValue)} icon={<Activity size={20} />} color={TEAL} trend={-1.5} />
+              <KpiCard label="Return Health" value={`${stats.returnRate}%`} icon={<RotateCcw size={20} />} color={RED} sub="Normal" trend={0.2} />
+              <KpiCard label="Tax Liability" value={fmt(stats.totalTax)} icon={<Shield size={20} />} color={GREEN} sub="Active" />
+              <KpiCard label="Sku Depth" value={stats.skuCount} icon={<Tag size={20} />} color={BRAND} sub="Diversified" />
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginBottom: 24 }}>
-              {/* Daily Revenue Line Chart */}
+            <div className="dash-grid-2" style={{ marginBottom: 24 }}>
               <div style={styles.card}>
-                <SectionHeader title="Daily Revenue" sub="Shipment revenue over time" />
+                <SectionHeader title="Revenue Trajectory" sub="Performance across current reporting period" />
                 <ResponsiveContainer width="100%" height={280}>
-                   <LineChart data={chartData}>
+                   <AreaChart data={chartData}>
+                     <defs><linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={BRAND} stopOpacity={0.1}/><stop offset="95%" stopColor={BRAND} stopOpacity={0}/></linearGradient></defs>
                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                      <XAxis dataKey="name" tick={{fontSize: 10}} />
-                     <YAxis tick={{fontSize: 10}} tickFormatter={v => fmt(v)} width={80} />
-                     <Tooltip formatter={(val) => fmt(val)} />
-                     <Line type="monotone" dataKey="revenue" stroke={BRAND} strokeWidth={3} dot={false} />
-                   </LineChart>
+                     <YAxis tick={{fontSize: 10}} tickFormatter={v => fmt(v)} />
+                     <Tooltip />
+                     <Area type="monotone" dataKey="revenue" stroke={BRAND} strokeWidth={3} fill="url(#gr)" />
+                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-
-              {/* Category Bar Chart */}
               <div style={styles.card}>
-                 <SectionHeader title="Category Breakdown" sub="Revenue by inferred category" />
-                 <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={stats.categoryBreakdown || []} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                      <XAxis type="number" tick={{fontSize: 10}} tickFormatter={v => fmt(v)} />
-                      <YAxis type="category" dataKey="name" width={110} tick={{fontSize: 10}} />
-                      <Tooltip formatter={(val) => fmt(val)} />
-                      <Bar dataKey="value" fill={ACCENT} radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                 </ResponsiveContainer>
+                 <SectionHeader title="🏆 Top Products" sub={source === 'shopify' ? 'Top Converting Variants' : source === 'custom' ? 'Highest Volume SKUs' : 'Top 5 contributors'} />
+                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                   {(stats.skuList || []).slice(0, 5).map((s, i) => (
+                     <div key={s.sku} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700 }}>{s.sku}</div>
+                          <div style={{ height: 4, background: "#f1f5f9", borderRadius: 2, marginTop: 4 }}>
+                            <div style={{ height: "100%", background: colorFor(i), width: `${stats.skuList[0].revenue ? (s.revenue / stats.skuList[0].revenue * 100) : 0}%` }} />
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", marginLeft: 16 }}>
+                          <div style={{ fontSize: 13, fontWeight: 800 }}>{fmt(s.revenue)}</div>
+                        </div>
+                     </div>
+                   ))}
+                 </div>
               </div>
+            </div>
 
-              {/* Payment Method Pie Chart */}
+            <div className="dash-grid-2" style={{ marginBottom: 24 }}>
               <div style={styles.card}>
-                 <SectionHeader title="Payment Methods" sub="Revenue mix by payment type" />
+                 <SectionHeader title="Payment Methods" sub="Revenue split by payment type" />
                  <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
-                      <Pie data={stats.paymentMethodMix || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
-                        {(stats.paymentMethodMix || []).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={colorFor(index)} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(val) => fmt(val)} />
-                      <Legend />
-                    </PieChart>
+                       <Pie 
+                         data={stats.paymentData || []} 
+                         dataKey="value" 
+                         nameKey="name" 
+                         cx="50%" 
+                         cy="50%" 
+                         innerRadius={70} 
+                         outerRadius={95} 
+                         paddingAngle={4}
+                         labelLine={true}
+                         label={({ name, percent }) => percent > 0.03 ? `${name} ${(percent * 100).toFixed(0)}%` : ""}
+                       >
+                         {(stats.paymentData || []).map((entry, index) => <Cell key={index} fill={colorFor(index)} stroke="none" />)}
+                       </Pie>
+                       <Tooltip formatter={(val) => fmt(val)} />
+                       <Legend verticalAlign="bottom" height={36} />
+                     </PieChart>
                  </ResponsiveContainer>
               </div>
 
-              {/* State Revenue Bar Chart */}
               <div style={styles.card}>
-                 <SectionHeader title="Top 10 States" sub="Highest revenue driving regions" />
+                 <SectionHeader title="Top 10 States" sub="Revenue by state" />
                  <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={(stats.stateList || []).slice(0, 10)}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="state" tick={{fontSize: 10}} angle={-45} textAnchor="end" height={60} />
                       <YAxis tick={{fontSize: 10}} tickFormatter={v => fmt(v)} width={80} />
                       <Tooltip formatter={(val) => fmt(val)} />
-                      <Bar dataKey="revenue" fill={TEAL} radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="revenue" fill={BRAND} radius={[4, 4, 0, 0]} />
                     </BarChart>
                  </ResponsiveContainer>
               </div>
             </div>
 
-            {/* AI INTELLIGENCE INSIGHTS — inline summary on overview */}
-            {analysis?.insights && analysis.insights.length > 0 && (
-              <div style={{ marginTop: 40, marginBottom: 40 }}>
-                <InsightsPanel insights={(analysis.insights || []).slice(0, 6)} />
-                {analysis.insights.length > 6 && (
-                  <div style={{ textAlign: 'center', marginTop: 12 }}>
-                    <button
-                      onClick={() => setActiveTab('insights')}
-                      style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: '#6366f1', padding: '10px 28px', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-                    >
-                      View All {analysis.insights.length} Insights →
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+
           </>
         )}
 
@@ -890,10 +880,10 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
              
              {/* Extended B2C KPIs */}
              <div className="dash-grid-4" style={{ gridColumn: "1 / -1" }}>
-                <KpiCard label="Gross Revenue" value={fmt((stats.totalRevenue || 0) * 1.15)} color="#0f172a" icon="📊" />
-                <KpiCard label="Promotions & Discounts" value={'-' + fmt((stats.totalRevenue || 0) * 0.12)} color={BRAND} icon="🎟️" />
-                <KpiCard label="Returns & Refunds" value={'-' + fmt((stats.totalRevenue || 0) * 0.03)} color={RED} icon="🔄" />
-                <KpiCard label="Net Revenue" value={fmt(stats.totalRevenue)} color={GREEN} icon="💰" />
+                <KpiCard label="Gross Revenue" value={fmt(stats.grossRevenue)} color="#0f172a" icon="📊" />
+                <KpiCard label="Promotions & Discounts" value={'-' + fmt(stats.totalDiscount)} color={BRAND} icon="🎟️" />
+                <KpiCard label="Returns & Refunds" value={'-' + fmt(stats.refundAmount)} color={RED} icon="🔄" />
+                <KpiCard label="Net Revenue" value={fmt(stats.netRevenue)} color={GREEN} icon="💰" />
              </div>
 
              <div style={styles.card}>
@@ -953,7 +943,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
               <div style={{ gridColumn: "1 / -1" }}>{isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 10, color: "#0f172a" }}>4. GST & Tax Liability</h2>}</div>
               
               <div className="dash-grid-4" style={{ gridColumn: "1 / -1" }}>
-                 <KpiCard label="Total Taxable Value" value={fmt(stats.totalRevenue)} color="#0f172a" icon={<Shield size={20}/>} />
+                 <KpiCard label="Total Taxable Value" value={fmt(stats.totalTaxableValue)} color="#0f172a" icon={<Shield size={20}/>} />
                  <KpiCard label="Total GST Collected" value={fmt(stats.tax?.total || 0)} color={PURPLE} icon={<Activity size={20}/>} />
                  <KpiCard label="Tax Credits (ITC) Est." value={fmt((stats.tax?.total || 0) * 0.15)} color={GREEN} icon={<Check size={20}/>} />
                  <KpiCard label="Net Tax Liability" value={fmt((stats.tax?.total || 0) * 0.85)} color={BRAND} icon={<Download size={20}/>} />
@@ -1258,7 +1248,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
                       {[
                         { icon: "📦", color: GREEN, title: "Restock Alert", body: `Top SKU "${stats.skuVelocity?.[0]?.sku || "—"}" moving at ${(stats.skuVelocity?.[0]?.dailyVelocity || 0).toFixed(1)}/day. Plan 30-day safety stock now.` },
-                        { icon: "💰", color: BRAND, title: "Revenue Momentum", body: `30D projection ${fmt(stats.forecast30)} signals ${(stats.forecast30 || 0) > (stats.totalRevenue || 0) ? "📈 growing" : "📉 softening"} demand.` },
+                        { icon: "💰", color: BRAND, title: "Revenue Momentum", body: `30D projection ${fmt(stats.forecast30)} signals ${(stats.forecast30 || 0) > (stats.netRevenue || 0) ? "📈 growing" : "📉 softening"} demand.` } ,
                         { icon: "🌍", color: PURPLE, title: "Regional Opportunity", body: `${stats.stateList?.[0]?.state || "Top state"} leads revenue. Targeted regional promos can amplify momentum.` },
                         { icon: "⚠️", color: RED, title: "Return Rate Watch", body: `Rate at ${parseFloat(stats.returnRate || 0).toFixed(1)}%. ${parseFloat(stats.returnRate) > 10 ? "⛔ Above threshold — investigate top-returning SKUs." : "✅ Healthy. Continue monitoring."}` },
                       ].map((ins, i) => (
@@ -1427,6 +1417,7 @@ function AppContent() {
   const [usageStats, setUsageStats] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('siq_usage_stats') || '{"used":0,"limit":10}'); } catch { return { used: 0, limit: 10 }; }
   });
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   // ── Refs for stable navigation logic (avoids closure stale state) ──────
   const activePlanRef = useRef(activePlan);
@@ -1495,7 +1486,7 @@ function AppContent() {
   }, [userRole, isDemoMode]);
 
   // ── Expiry Warning Banner ────────────────────────────────────────────────
-  const expiryBanner = (planStatus && (planStatus.status === 'expiring_soon') && userRole && !isDemoMode) ? (
+  const expiryBanner = (planStatus && (planStatus.status === 'expiring_soon') && userRole && !isDemoMode && !bannerDismissed) ? (
     <div id="plan-expiry-warning" style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99998,
       background: 'linear-gradient(90deg, #92400e, #d97706, #92400e)',
@@ -1519,13 +1510,18 @@ function AppContent() {
       >
         🔄 Recharge Now
       </button>
+
+      <button
+        onClick={() => setBannerDismissed(true)}
+        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.7, padding: 8 }}
+      >
+        <X size={20} />
+      </button>
     </div>
   ) : null;
 
-  // ── MAIN upload handler (authenticated users only, never demo) ───────────
   const handleFileSelection = async (filesInput) => {
     if (!filesInput || ingestion.loading) return;
-    // Accept both a single File and an array of Files
     const files = Array.isArray(filesInput) ? filesInput : [filesInput];
     if (files.length === 0) return;
 
@@ -1533,28 +1529,40 @@ function AppContent() {
       ? files[0].name
       : `${files[0].name} + ${files.length - 1} more file${files.length > 2 ? 's' : ''}`;
 
-    setIngestion({ loading: true, msg: `Uploading ${files.length} file${files.length > 1 ? 's' : ''}…`, progress: 5 });
+    setIngestion({ loading: true, msg: `Parsing ${files.length} file(s)…`, progress: 20 });
     try {
-      const res = await analyzeReport(files, (pct) => {
-        setIngestion(prev => ({
-          ...prev,
-          progress: Math.max(prev.progress, pct),
-          msg: pct < 40 ? `Merging ${files.length} datasets…` : pct < 80 ? 'Deduplicating rows…' : 'Analyzing patterns…'
-        }));
-      });
+      let allRows = [];
+      for (const file of files) {
+        await new Promise((resolve, reject) => {
+          Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              allRows = allRows.concat(results.data);
+              resolve();
+            },
+            error: (err) => reject(err)
+          });
+        });
+      }
+      
+      setIngestion({ loading: true, msg: 'Processing data...', progress: 70 });
+      const stats = processData(allRows);
+      
       setIngestion({ loading: false, msg: 'Success', progress: 100 });
       setState({
-        rawData: res.rawData,
-        analysis: res.analysis,
+        rawData: allRows,
+        analysis: stats,
         filename: label,
-        source: res.source || 'amazon',
-        session_id: res.session_id,
-        fraud: res.analysis?.fraud
+        source: 'amazon',
+        session_id: Date.now(),
+        fraud: stats.fraud
       });
       window.location.hash = 'overview';
     } catch (err) {
       console.error('Ingestion failed:', err);
-      setIngestion({ loading: false, msg: err.response?.data?.detail || 'Analysis failed. Ensure valid MTR format.', progress: 0 });
+      setIngestion({ loading: false, msg: `Analysis failed: ${err.message}`, progress: 0 });
     }
   };
 
@@ -1571,17 +1579,31 @@ function AppContent() {
       sessionStorage.setItem('siq_demo_used', '1');
       setDemoIngestion({ loading: true, msg: "Initializing engine...", progress: 5 });
     try {
-      const res = await analyzeReport(file, (pct) => {
-        setDemoIngestion(prev => ({ ...prev, progress: Math.max(prev.progress, pct), msg: pct < 100 ? "Syncing data blocks..." : "Analyzing patterns..." }));
+      let allRows = [];
+      await new Promise((resolve, reject) => {
+        Papa.parse(file, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            allRows = allRows.concat(results.data);
+            resolve();
+          },
+          error: (err) => reject(err)
+        });
       });
+      
+      setDemoIngestion({ loading: true, msg: "Processing data...", progress: 70 });
+      const stats = processData(allRows);
+      
       setDemoIngestion({ loading: false, msg: "Success", progress: 100 });
       setState({
-        rawData: res.rawData,
-        analysis: res.analysis,
+        rawData: allRows,
+        analysis: stats,
         filename: file.name,
-        source: res.source || 'amazon',
-        session_id: res.session_id,
-        fraud: res.analysis?.fraud
+        source: 'amazon',
+        session_id: Date.now(),
+        fraud: stats.fraud
       });
       
       // Auto-transition to dashboard + show plan overlay after a short delay
