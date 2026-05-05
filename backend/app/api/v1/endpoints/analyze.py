@@ -77,14 +77,18 @@ async def analyze_report(
                     if lower_h in ['city','shipcity','shiptocity']: mapped_key = 'Ship To City'
                     if lower_h in ['state','shipstate','shiptostate']: mapped_key = 'Ship To State'
                     if lower_h in ['postalcode','zip','pincode']: mapped_key = 'Ship To Zip'
-                    if lower_h in ['orderid','ordernumber']: mapped_key = 'Order Id'
-                    if lower_h in ['sku','asin']: mapped_key = 'Sku'
-                    if lower_h in ['quantity','units']: mapped_key = 'Quantity'
+                    if lower_h in ['orderid','ordernumber','amazonorderid']: mapped_key = 'Order Id'
+                    if lower_h in ['sku','asin','sellersku','itemsku']: mapped_key = 'Sku'
+                    if lower_h in ['quantity','units','qty','quantityshipped']: mapped_key = 'Quantity'
                     if lower_h in ['invoiceamount', 'itemprice', 'amount', 'revenue']:
                         if 'Invoice Amount' not in obj or lower_h == 'invoiceamount':
                             mapped_key = 'Invoice Amount'
-                    if lower_h in ['invoicedate','date']: mapped_key = 'Invoice Date'
-                    if lower_h in ['gstin','buyerregistration']: mapped_key = 'Gstin'
+                    if lower_h in ['invoicedate','date','orderdate','shipmentdate']: mapped_key = 'Invoice Date'
+                    if lower_h in ['gstin','buyergstin','buyerregistration']: mapped_key = 'Gstin'
+                    if lower_h in ['transactiontype','type','settlementaction']: mapped_key = 'Transaction Type'
+                    if lower_h in ['buyername','recipientname','customername','shiptoname']: mapped_key = 'Buyer Name'
+                    if lower_h in ['fulfillmentchannel','fulfillment','channel']: mapped_key = 'Fulfillment Channel'
+                    if lower_h in ['shiptostate','shipstate','billtostate']: mapped_key = 'Ship To State'
                     
                     obj[mapped_key] = val
                 all_parsed_rows.append(obj)
