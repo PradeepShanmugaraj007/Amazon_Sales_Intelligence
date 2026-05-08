@@ -32,8 +32,120 @@ import ERPDashboard from "./components/ERPDashboard";
 import DemoUpload from "./components/DemoUpload";
 import RegionAnalysis from "./components/RegionAnalysis";
 import LoginRegisterModal from "./components/LoginRegisterModal";
-import { SaaS_PLANS, SaaSMembership, UpgradeBanner } from "./components/SaaSComponents";
 
+const SaaS_PLANS = [
+  { id: 'starter', name: 'Starter', price: 299, features: ['3 files per month', 'Up to 5,000 orders', 'Email Support', 'Basic Analytics'] },
+  { id: 'pro', name: 'Pro', price: 649, recommended: true, features: ['10 files per month', 'Up to 25,000 orders', '24/7 Priority Support', 'AI Fraud Detection', 'Predictive Forecasting'] },
+  { id: 'enterprise', name: 'Enterprise', price: 1499, features: ['30 files per month', 'Unlimited orders', '24/7 Call Support', 'Full API Access', 'Custom Integrations'] }
+];
+
+const SaaSMembership = ({ styles, activePlan }) => {
+  const isDemoMode = styles?.isDemoMode;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginTop: 40 }}>
+      {SaaS_PLANS.map((p, i) => {
+        const isActive = isDemoMode ? false : p.id === activePlan;
+        return (
+          <div key={i} style={{ 
+            background: 'white', border: isActive ? `2px solid ${BRAND}` : '1px solid #e2e8f0', 
+            borderRadius: 24, padding: 32, position: 'relative', overflow: 'hidden',
+            boxShadow: isActive ? `0 20px 40px -10px ${BRAND}20` : '0 10px 30px -10px rgba(0,0,0,0.05)'
+          }}>
+            {p.recommended && !isActive && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: BRAND, color: 'white', fontSize: 10, fontWeight: 900, textAlign: 'center', padding: '4px 0', letterSpacing: 1 }}>RECOMMENDED</div>}
+            <h3 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>{p.name}</h3>
+            <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 24 }}>₹{p.price.toLocaleString('en-IN')}<span style={{ fontSize: 14, color: '#64748b', fontWeight: 500 }}>/mo</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+              {p.features.map((f, fi) => (
+                <div key={fi} style={{ display: 'flex', gap: 8, fontSize: 13, color: '#475569' }}>
+                   <div style={{ color: BRAND }}><Check size={16} /></div> {f}
+                </div>
+              ))}
+            </div>
+            <button 
+              onClick={() => {
+                if (isDemoMode) {
+                  sessionStorage.clear();
+                  window.location.href = '/?action=get-started#login';
+                } else {
+                  window.location.hash = 'login';
+                }
+              }}
+              style={{ 
+                width: '100%', padding: '12px', borderRadius: 12, border: 'none', 
+                background: isActive ? '#f1f5f9' : BRAND, color: isActive ? '#64748b' : 'white',
+                fontWeight: 800, cursor: isActive ? 'default' : 'pointer'
+              }}
+              disabled={isActive}
+            >
+              {isActive ? "Currently Active" : (isDemoMode ? "Get Started" : "Upgrade Now")}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─── UPGRADE BANNER ──────────────────────────────────────────────────────────
+const UpgradeBanner = ({ feature, requiredPlan, color, icon, activePlan }) => {
+  const planOrder = { starter: 0, pro: 1, enterprise: 2 };
+  const currentLevel = planOrder[String(activePlan).toLowerCase()] || 0;
+  const availablePlans = SaaS_PLANS.filter(p => planOrder[p.id] > currentLevel);
+
+  return (
+    <div style={{
+      background: `linear-gradient(135deg, ${color}18, ${color}08)`,
+      border: `1px solid ${color}40`,
+      borderRadius: 20,
+      padding: "60px 40px",
+      textAlign: "center",
+      marginTop: 24,
+    }}>
+      <div style={{ fontSize: 56, marginBottom: 20 }}>{icon}</div>
+      <h2 style={{ fontSize: 24, fontWeight: 900, color: "#0f172a", marginBottom: 12 }}>
+        {feature} is not available on your plan
+      </h2>
+      <p style={{ fontSize: 15, color: "#64748b", marginBottom: 32, maxWidth: 480, margin: "0 auto 32px" }}>
+        You are currently using the <strong style={{ textTransform: 'capitalize' }}>{activePlan}</strong> plan. Upgrade to unlock this feature and get access to advanced analytics, forecasting, and intelligence tools.
+      </p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${availablePlans.length}, 1fr)`, gap: 24, maxWidth: availablePlans.length === 1 ? 380 : 760, margin: '0 auto 32px', textAlign: 'left' }}>
+        {availablePlans.map((p, i) => (
+          <div key={i} style={{ 
+            background: 'white', border: '1px solid #e2e8f0', 
+            borderRadius: 24, padding: 32, position: 'relative', overflow: 'hidden',
+            boxShadow: '0 10px 30px -10px rgba(0,0,0,0.05)'
+          }}>
+            {p.recommended && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: BRAND, color: 'white', fontSize: 10, fontWeight: 900, textAlign: 'center', padding: '4px 0', letterSpacing: 1 }}>RECOMMENDED</div>}
+            <h3 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>{p.name}</h3>
+            <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 24 }}>₹{p.price.toLocaleString('en-IN')}<span style={{ fontSize: 14, color: '#64748b', fontWeight: 500 }}>/mo</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+              {p.features.map((f, fi) => (
+                <div key={fi} style={{ display: 'flex', gap: 8, fontSize: 13, color: '#475569' }}>
+                   <div style={{ color: BRAND }}><Check size={16} /></div> {f}
+                </div>
+              ))}
+            </div>
+            <button 
+              onClick={() => { window.location.hash = 'upgrade'; }}
+              style={{ 
+                width: '100%', padding: '12px', borderRadius: 12, border: 'none', 
+                background: BRAND, color: 'white',
+                fontWeight: 800, cursor: 'pointer'
+              }}
+            >
+              Upgrade to {p.name}
+            </button>
+          </div>
+        ))}
+      </div>
+      
+      <div style={{ marginTop: 16, fontSize: 13, color: "#94a3b8" }}>
+        Contact us at support@selleriq.pro to upgrade your subscription.
+      </div>
+    </div>
+  );
+};
 
 // ─── MAIN DASHBOARD ─────────────────────────────────────────────────────────
 const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudData, analysis, onReset, isDemoMode, onLogout, usageStats }) => {
@@ -46,7 +158,6 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
   const ALL_TABS = ["overview", "sku", "regions", "insights", "tax", "fraud", "forecast", "saas", "about", "support"];
   const LOCKED_TABS = [
     ...(canAccess('pro') ? [] : ['fraud', 'forecast']),
-    ...(canAccess('enterprise') ? [] : ['saas']),
   ];
   const KNOWN_TABS = ALL_TABS;
 
@@ -75,11 +186,34 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
   const [dateRange, setDateRange] = useState("all");
   const [skuFilter, setSkuFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("all");
-  const [chartView, setChartView] = useState("weekly");
+  const [chartView, setChartView] = useState("daily");
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [channelFilter, setChannelFilter] = useState("all");
   const [isExporting, setIsExporting] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [showExpiryBanner, setShowExpiryBanner] = useState(false);
+  const [planExpiryMinutes, setPlanExpiryMinutes] = useState(null);
+
+  // Calculate plan expiry countdown from sessionStorage
+  useEffect(() => {
+    const expiry = sessionStorage.getItem('siq_plan_expiry');
+    if (!expiry) return;
+    const calc = () => {
+      const diff = new Date(expiry).getTime() - Date.now();
+      if (diff > 0) {
+        const mins = Math.floor(diff / 60000);
+        // Show banner if within 5 days (7200 minutes)
+        if (mins <= 7200) {
+          setPlanExpiryMinutes(mins);
+          setShowExpiryBanner(true);
+        }
+      }
+    };
+    calc();
+    const iv = setInterval(calc, 60000);
+    return () => clearInterval(iv);
+  }, []);
 
   // Close profile dropdown on outside click
   useEffect(() => {
@@ -179,18 +313,34 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
     if (endDate) { const ed = new Date(endDate); d = d.filter(r => { const dt = parseRowDate(r); return dt && dt <= ed; }); }
     if (skuFilter) d = d.filter(r => (r["Sku"] || "").toLowerCase().includes(skuFilter.toLowerCase()) || (r["Item Description"] || "").toLowerCase().includes(skuFilter.toLowerCase()));
     if (stateFilter !== "all") d = d.filter(r => (r["Ship To State"] || "").trim().toLowerCase() === stateFilter.trim().toLowerCase());
+    if (channelFilter !== "all") {
+      d = d.filter(r => {
+        let val = "";
+        const keys = Object.keys(r);
+        for (const k of keys) {
+          const lk = k.toLowerCase().replace(/[\s_-]/g, '');
+          if (lk === 'fulfillmentchannel' || lk === 'channel' || lk === 'fulfillment') {
+            val = String(r[k] || "").trim().toLowerCase();
+            break;
+          }
+        }
+        if (channelFilter === "fba") return val === "fba" || val === "amazon" || val === "afn";
+        if (channelFilter === "mfn") return val === "mfn" || val === "merchant" || val === "seller" || val === "easy ship" || val === "easyship";
+        return val === channelFilter.toLowerCase();
+      });
+    }
     return d;
-  }, [rawData, dateRange, skuFilter, stateFilter, startDate, endDate]);
+  }, [rawData, dateRange, skuFilter, stateFilter, startDate, endDate, channelFilter]);
 
   const stats = useMemo(() => {
-    const isFiltered = dateRange !== "all" || skuFilter !== "" || stateFilter !== "all" || startDate !== "" || endDate !== "";
+    const isFiltered = dateRange !== "all" || skuFilter !== "" || stateFilter !== "all" || startDate !== "" || endDate !== "" || channelFilter !== "all";
     if (!isFiltered && analysis) return analysis;
     return processData(filtered);
-  }, [filtered, analysis, dateRange, skuFilter, stateFilter, startDate, endDate]);
+  }, [filtered, analysis, dateRange, skuFilter, stateFilter, startDate, endDate, channelFilter]);
   const chartData = useMemo(() => {
     if (!stats) return [];
     return chartView === "monthly" ? (stats.monthlySales || []).map(m => ({ ...m, name: m.month }))
-      : chartView === "daily" ? (stats.dailySales || []).slice(-30).map(d => ({ ...d, name: d.date.slice(5) }))
+      : chartView === "daily" ? (stats.dailySales || []).slice(-30).map(d => ({ ...d, name: d.date ? d.date.split('-').slice(1).join('/') : (d.name || d.label || '—') }))
       : (stats.weeklySales || []).map(w => ({ ...w, name: w.week }));
   }, [stats, chartView]);
 
@@ -198,7 +348,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
     container: { fontFamily: "'Inter', sans-serif", background: "linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)", minHeight: "100vh", display: "flex" },
     main: { flex: 1, marginLeft: 280, padding: "32px 40px", minWidth: 0 },
     header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32, paddingBottom: 24, borderBottom: "1px solid rgba(0,0,0,0.05)" },
-    filterBar: { display: "flex", gap: 12, marginBottom: 24, background: "rgba(255,255,255,0.7)", backdropFilter: "blur(20px)", padding: 16, borderRadius: 16, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.03)", border: "1px solid #ffffff" },
+    filterBar: { display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12, marginBottom: 24, background: "rgba(255,255,255,0.7)", backdropFilter: "blur(20px)", padding: 16, borderRadius: 16, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.03)", border: "1px solid #ffffff" },
     card: { background: "rgba(255,255,255,0.7)", backdropFilter: "blur(24px)", borderRadius: 16, padding: 28, boxShadow: "0 20px 40px -20px rgba(0,0,0,0.05)", marginBottom: 24, border: "1px solid #ffffff" },
     select: { padding: "10px 16px", borderRadius: 10, border: "1px solid #cbd5e1", background: "#ffffff", fontSize: 14, fontWeight: 600, color: "#334155", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" },
     table: { width: "100%", borderCollapse: "collapse" },
@@ -433,35 +583,63 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
       />
 
       <div style={styles.main} className="dash-main" id="dashboard-export-area">
-        {activePlan === 'starter' && !isExporting && (
+
+        {showExpiryBanner && !isExporting && (
           <div style={{
-            background: 'linear-gradient(90deg, #f8fafc, #eff6ff)',
-            border: '1px solid #e2e8f0',
-            borderRadius: 12,
-            padding: '12px 20px',
-            marginBottom: 24,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+            position: 'sticky', top: 0, zIndex: 200,
+            background: 'linear-gradient(90deg, #b45309, #d97706, #b45309)',
+            backgroundSize: '200% 100%',
+            animation: 'bannerShimmer 3s linear infinite',
+            marginLeft: -40, marginRight: -40, marginBottom: 20,
+            boxShadow: '0 4px 20px rgba(180,83,9,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 16, padding: '11px 24px',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ padding: '6px 12px', background: BRAND, color: 'white', borderRadius: 8, fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Starter Mode</div>
-              <div style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>
-                1MB Analysis Limit Active • Advanced Intelligence Locked
-              </div>
+            <style>{`@keyframes bannerShimmer { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }`}</style>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, width: '100%', maxWidth: 1200 }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>🔔</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fef3c7" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>
+                Your <strong style={{ textTransform: 'uppercase' }}>{activePlan}</strong> plan expires in{' '}
+                <strong style={{ color: '#fef3c7' }}>{planExpiryMinutes?.toLocaleString()} minutes!</strong>
+                {' '}Recharge now to avoid losing access.
+              </span>
+              <button
+                onClick={() => setActiveTab('saas')}
+                style={{
+                  padding: '6px 18px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.92)', color: '#92400e',
+                  border: 'none', fontSize: 12, fontWeight: 800,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                  transition: 'all 0.2s', flexShrink: 0
+                }}
+              >
+                <CreditCard size={14} /> Recharge Now
+              </button>
+              
+              <button
+                onClick={() => setShowExpiryBanner(false)}
+                title="Dismiss"
+                style={{
+                  marginLeft: 12, width: 28, height: 28, borderRadius: '50%',
+                  background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.3)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: 0, flexShrink: 0, color: 'white'
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="1.5" y1="1.5" x2="8.5" y2="8.5"/>
+                  <line x1="8.5" y1="1.5" x2="1.5" y2="8.5"/>
+                </svg>
+              </button>
             </div>
-            <button 
-              onClick={() => {
-                // Trigger plan selection
-                window.location.hash = 'login';
-              }}
-              style={{ padding: '6px 16px', background: 'white', border: `1.5px solid ${BRAND}`, color: BRAND, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-            >
-              🚀 Upgrade to Pro
-            </button>
           </div>
         )}
+
+
 
         <div style={styles.header}>
           <div>
@@ -616,10 +794,10 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Channel:</span>
-              <select style={styles.select}>
-                <option>FBA + MFN</option>
-                <option>FBA Only</option>
-                <option>MFN Only</option>
+              <select style={styles.select} value={channelFilter} onChange={e => setChannelFilter(e.target.value)}>
+                <option value="all">FBA + MFN</option>
+                <option value="fba">FBA Only</option>
+                <option value="mfn">MFN Only</option>
               </select>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -629,23 +807,8 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
                 {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", opacity: 0 }}>Search:</span>
-              <div style={{ position: "relative" }}>
-                <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
-                <input type="text" placeholder="Search SKU, name or details..." style={{ ...styles.select, width: "100%", paddingLeft: 36, background: "#fff" }} value={skuFilter} onChange={e => setSkuFilter(e.target.value)} />
-              </div>
-            </div>
-            {activeTab === "overview" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", opacity: 0 }}>View:</span>
-                <div style={{ display: "flex", gap: 4, padding: 3, background: "#f1f5f9", borderRadius: 8 }}>
-                  {["daily", "weekly", "monthly"].map(v => (
-                    <button key={v} onClick={() => setChartView(v)} style={{ padding: "4px 12px", border: "none", borderRadius: 6, fontSize: 10, fontWeight: 800, cursor: "pointer", background: chartView === v ? "#fff" : "transparent", color: chartView === v ? BRAND : "#64748b" }}>{v[0].toUpperCase() + v.slice(1)}</button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div style={{ flex: 1 }}></div>
+
           </div>
         )}
 
@@ -653,6 +816,62 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         {(activeTab === "overview" || isExporting) && stats && (
           <>
             {isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 30, marginTop: 40, color: "#0f172a" }}>1. Executive Overview</h2>}
+
+            {/* ── WELCOME GREETING ── */}
+            {!isExporting && (() => {
+              const userName = sessionStorage.getItem('siq_user_name') || 'User';
+              const userPic = sessionStorage.getItem('siq_user_picture');
+              return (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginBottom: 28, padding: '20px 24px',
+                  background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(20px)',
+                  borderRadius: 16, border: '1px solid #ffffff',
+                  boxShadow: '0 8px 24px -8px rgba(0,0,0,0.06)'
+                }}>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      Welcome back, {userName} ✨
+                    </h2>
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b', fontWeight: 500 }}>
+                      Here's what's happening with your Amazon sales today.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {/* Search box */}
+                    <div style={{ position: 'relative' }}>
+                      <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                      <input
+                        type="text"
+                        placeholder="Search SKU or analytics..."
+                        value={skuFilter}
+                        onChange={e => setSkuFilter(e.target.value)}
+                        style={{
+                          paddingLeft: 34, paddingRight: 14, paddingTop: 9, paddingBottom: 9,
+                          borderRadius: 10, border: '1px solid #e2e8f0',
+                          background: '#fff', fontSize: 13, color: '#334155',
+                          outline: 'none', width: 220, fontFamily: "'Inter', sans-serif"
+                        }}
+                      />
+                    </div>
+                    {/* Avatar */}
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: userPic ? 'transparent' : BRAND,
+                      border: '2px solid #e2e8f0',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      overflow: 'hidden', flexShrink: 0
+                    }}>
+                      {userPic
+                        ? <img src={userPic} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                        : <span style={{ color: 'white', fontWeight: 800, fontSize: 14 }}>{userName[0]?.toUpperCase()}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
               <KpiCard label="Gross Revenue" value={fmt(stats.grossRevenue)} icon={<Activity size={20} />} color={BRAND} />
               <KpiCard label="Net Revenue" value={fmt(stats.netRevenue)} icon={<Activity size={20} />} color={ACCENT} />
@@ -673,14 +892,14 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginBottom: 24 }}>
               {/* Daily Revenue Line Chart */}
               <div style={styles.card}>
-                <SectionHeader title="Daily Revenue" sub="Shipment revenue over time" />
+                <SectionHeader title={`${chartView[0].toUpperCase() + chartView.slice(1)} Revenue`} sub="Shipment revenue over time" />
                 <ResponsiveContainer width="100%" height={280}>
                    <LineChart data={chartData}>
                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                     <XAxis dataKey="name" tick={{fontSize: 10}} />
+                     <XAxis dataKey="name" tick={{fontSize: 10}} interval={Math.floor((stats.dailySales?.length || 30) / 7)} />
                      <YAxis tick={{fontSize: 10}} tickFormatter={v => fmt(v)} width={80} />
-                     <Tooltip formatter={(val) => fmt(val)} />
-                     <Line type="monotone" dataKey="revenue" stroke={BRAND} strokeWidth={3} dot={false} />
+                     <Tooltip formatter={(val) => fmt(val)} labelFormatter={(label) => `Date: ${label}`} />
+                     <Line type="monotone" dataKey="revenue" stroke={BRAND} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
                    </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -730,22 +949,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
               </div>
             </div>
 
-            {/* AI INTELLIGENCE INSIGHTS — inline summary on overview */}
-            {analysis?.insights && analysis.insights.length > 0 && (
-              <div style={{ marginTop: 40, marginBottom: 40 }}>
-                <InsightsPanel insights={(analysis.insights || []).slice(0, 6)} />
-                {analysis.insights.length > 6 && (
-                  <div style={{ textAlign: 'center', marginTop: 12 }}>
-                    <button
-                      onClick={() => setActiveTab('insights')}
-                      style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: '#6366f1', padding: '10px 28px', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-                    >
-                      View All {analysis.insights.length} Insights →
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+
           </>
         )}
 
@@ -885,7 +1089,16 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                         <div style={{ background: 'white', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>
                            <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>B2B Segment</div>
-                           <div style={{ fontSize: 24, fontWeight: 900 }}>{stats.b2bPercentage}%</div>
+                           <div style={{ fontSize: 24, fontWeight: 900 }}>
+                             {stats.b2bPercentage != null && String(stats.b2bPercentage).trim() !== ""
+                               ? `${stats.b2bPercentage}%`
+                               : (() => {
+                                   const total = stats.totalOrders || (rawData || []).length;
+                                   const b2b = stats.b2bOrders ?? (rawData || []).filter(r => r['Gstin'] && String(r['Gstin']).trim() && !['N/A','URD','UNREGISTERED'].includes(String(r['Gstin']).trim().toUpperCase())).length;
+                                   return total > 0 ? `${((b2b / total) * 100).toFixed(1)}%` : '0.0%';
+                                 })()
+                             }
+                           </div>
                         </div>
                         <div style={{ background: 'white', padding: 20, borderRadius: 16, border: '1px solid #e2e8f0' }}>
                            <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Compliance</div>
@@ -1296,6 +1509,7 @@ function AppContent() {
   const [state, setState] = useState({ rawData: null, analysis: null, filename: null });
   const [showLanding, setShowLanding] = useState(() => !sessionStorage.getItem('siq_role'));
   const [loginView, setLoginView] = useState("plans");
+  const [currentHash, setCurrentHash] = useState(() => window.location.hash.replace('#', ''));
   const [isDemoMode, setIsDemoMode] = useState(() => {
     const hash = window.location.hash.replace('#', '');
     const plan = sessionStorage.getItem('siq_plan');
@@ -1315,6 +1529,9 @@ function AppContent() {
   const [usageStats, setUsageStats] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('siq_usage_stats') || '{"used":0,"limit":10}'); } catch { return { used: 0, limit: 10 }; }
   });
+  const [showLoginToast, setShowLoginToast] = useState(false);
+  const [loginToastName, setLoginToastName] = useState("");
+
 
   // ── Refs for stable navigation logic (avoids closure stale state) ──────
   const activePlanRef = useRef(activePlan);
@@ -1382,33 +1599,7 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [userRole, isDemoMode]);
 
-  // ── Expiry Warning Banner ────────────────────────────────────────────────
-  const expiryBanner = (planStatus && (planStatus.status === 'expiring_soon') && userRole && !isDemoMode) ? (
-    <div id="plan-expiry-warning" style={{
-      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99998,
-      background: 'linear-gradient(90deg, #92400e, #d97706, #92400e)',
-      backgroundSize: '200% 100%',
-      animation: 'gradientSlide 3s linear infinite',
-      color: '#fff', padding: '12px 24px',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
-      fontFamily: "'Inter', sans-serif", fontSize: 14, fontWeight: 700,
-      boxShadow: '0 4px 20px rgba(217,119,6,0.5)'
-    }}>
-      <style>{`@keyframes gradientSlide { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }`}</style>
-      <span style={{ fontSize: 20 }}>⏰</span>
-      <span>
-        ⚠️ Your <strong style={{ textTransform: 'uppercase' }}>{planStatus.plan}</strong> plan expires in{' '}
-        <strong>{planStatus.minutes_remaining} minute{planStatus.minutes_remaining !== 1 ? 's' : ''}</strong>!
-        {' '}Recharge now to avoid losing access.
-      </span>
-      <button
-        onClick={() => { sessionStorage.clear(); setUserRole(null); setLoginView('plans'); setShowLanding(false); window.location.hash = 'login'; }}
-        style={{ padding: '6px 18px', borderRadius: 8, background: '#fff', color: '#92400e', border: 'none', fontWeight: 900, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap' }}
-      >
-        🔄 Recharge Now
-      </button>
-    </div>
-  ) : null;
+
 
   // ── MAIN upload handler (authenticated users only, never demo) ───────────
   const handleFileSelection = async (filesInput) => {
@@ -1501,7 +1692,7 @@ function AppContent() {
                 setDemoBlockReason(null);
                 setLoginView("plans");
                 setShowLanding(false);
-                window.location.hash = 'login';
+                window.location.hash = 'upgrade';
               }} 
               style={{ 
                 padding: "16px", borderRadius: 16, background: "linear-gradient(135deg, #6366f1, #4f46e5)", color: "#fff", 
@@ -1565,6 +1756,8 @@ function AppContent() {
   useEffect(() => {
     const handleNavigation = () => {
       const hash = window.location.hash.replace('#', '');
+      setCurrentHash(hash);
+      
       if (hash === 'home' || hash === '') {
         if (!userRole) setShowLanding(true);
         setIsDemoMode(false);
@@ -1639,14 +1832,15 @@ function AppContent() {
   }
 
   // Logic: Show login if not logged in AND NOT currently in a guest trial flow
-  const isGuestTryingFree = !userRoleRef.current && (isDemoMode || window.location.hash.toLowerCase().includes('upload') || window.location.hash.toLowerCase().includes('demo'));
+  const isGuestTryingFree = !userRoleRef.current && (isDemoMode || currentHash.toLowerCase().includes('upload') || currentHash.toLowerCase().includes('demo'));
+  const isUpgrading = currentHash.toLowerCase().includes('upgrade');
   
-  if ((!userRoleRef.current && !isGuestTryingFree) || (userRoleRef.current === 'user' && activePlanRef.current === 'none')) {
+  if ((!userRoleRef.current && !isGuestTryingFree) || (userRoleRef.current === 'user' && activePlanRef.current === 'none') || isUpgrading) {
     // Hide background login if the demo limit modal is already showing (prevents double Google init)
-    if (demoBlockReason) return demoLimitOverlay;
+    if (demoBlockReason && !isUpgrading) return demoLimitOverlay;
 
     return <LoginSection
-      initialView={activePlan === 'none' ? 'plans' : (expiredSession ? 'expired_redirect' : loginView)}
+      initialView={isUpgrading ? 'plans' : (activePlan === 'none' ? 'plans' : (expiredSession ? 'expired_redirect' : loginView))}
       prefillData={prefillData}
       onLogin={(role, plan, usageStats, initialPlanStatus, targetHash) => {
         // Update refs and session storage IMMEDIATELY to prevent race conditions during hash navigation
@@ -1662,6 +1856,13 @@ function AppContent() {
           sessionStorage.setItem('siq_usage_stats', JSON.stringify(usageStats));
         }
         if (initialPlanStatus) setPlanStatus(initialPlanStatus);
+
+        // Trigger the login success toast
+        const userName = sessionStorage.getItem('siq_user_name') || 'User';
+        setLoginToastName(userName);
+        setShowLoginToast(true);
+        setTimeout(() => setShowLoginToast(false), 5000);
+
         setExpiredSession(false);
         // If targetHash is provided, use it. Otherwise, admins go to #admin, users go to #upload (which redirects to #demo if needed)
         window.location.hash = targetHash || (role === 'admin' ? 'admin' : 'upload');
@@ -1680,8 +1881,7 @@ function AppContent() {
     if (isDemoMode) {
       return (
         <>
-          {expiryBanner}
-          <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+          <div>
             <DemoUpload 
               onFileSelect={handleDemoFileSelection}
               ingestionStatus={demoIngestion}
@@ -1695,8 +1895,7 @@ function AppContent() {
 
     return (
       <>
-        {expiryBanner}
-        <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+        <div>
           <UploadSection 
             activePlan={activePlan} 
             onFileSelect={handleFileSelection} 
@@ -1710,8 +1909,7 @@ function AppContent() {
   if (state.source === 'shopify') {
     return (
       <>
-        {expiryBanner}
-        <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+        <div>
           <ShopifyDashboard rawData={state.rawData} filename={state.filename} onReset={() => {
             setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null });
             window.location.hash = 'upload';
@@ -1724,8 +1922,7 @@ function AppContent() {
   if (state.source === 'custom') {
     return (
       <>
-        {expiryBanner}
-        <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+        <div>
           <ERPDashboard rawData={state.rawData} filename={state.filename} onReset={() => {
             setState({ rawData: null, analysis: null, filename: null, source: null, session_id: null });
             window.location.hash = 'upload';
@@ -1757,8 +1954,7 @@ function AppContent() {
         .filter-input { padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f9fafb; font-size: 13px; outline: none; }
         .page-title { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); }
       `}</style>
-      {expiryBanner}
-      <div style={{ paddingTop: expiryBanner ? 48 : 0 }}>
+      <div style={{ paddingTop: 0 }}>
         <Dashboard 
           rawData={state.rawData} 
           filename={state.filename} 
@@ -1792,13 +1988,37 @@ function AppContent() {
           }}
         />
       </div>
+      {showLoginToast && (
+        <div style={{
+          position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 100000, background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 16,
+          padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 20px 40px rgba(0,0,0,0.3)', animation: 'toastSlideDown 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        }}>
+          <style>{`
+            @keyframes toastSlideDown {
+              from { transform: translate(-50%, -100px); opacity: 0; }
+              to { transform: translate(-50%, 0); opacity: 1; }
+            }
+          `}</style>
+          <div style={{ width: 32, height: 32, borderRadius: 50, background: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Check size={18} color="white" />
+          </div>
+          <div style={{ color: 'white', fontWeight: 700, fontSize: 14 }}>
+            Successfully login with <span style={{ color: '#3b82f6' }}>{loginToastName}</span>
+          </div>
+        </div>
+      )}
       {demoLimitOverlay}
+
     </>
   );
 }
 
+const GOOGLE_CLIENT_ID = "505753164861-3s7egj0sp4c2pg8t9r743dpqeq1jib70.apps.googleusercontent.com";
+
 export default function App() {
-  const GOOGLE_CLIENT_ID = "505753164861-3s7egj0sp4c2pg8t9r743dpqeq1jib70.apps.googleusercontent.com";
   return (
     <ErrorBoundary>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
