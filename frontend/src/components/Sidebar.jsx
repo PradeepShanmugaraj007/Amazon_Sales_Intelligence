@@ -88,9 +88,18 @@ const Sidebar = ({
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 24, fontWeight: 900, marginBottom: 12, letterSpacing: "-0.03em" }}>
-        <img src="/favicon.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
-        <span>SellerIQ <span style={{ color: "#60a5fa" }}>PRO</span></span>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <img src="/selleriq-icon.png" alt="Logo" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 10, background: '#fff', padding: 4 }} />
+        <span style={{ 
+          fontSize: 18, 
+          fontWeight: 900, 
+          color: '#fff', 
+          letterSpacing: '-0.5px',
+          fontFamily: "'Inter', sans-serif",
+          textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+        }}>
+          SellerIQ <span style={{ color: BRAND }}>Pro</span>
+        </span>
       </div>
 
       {/* Plan Badge */}

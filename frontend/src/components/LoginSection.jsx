@@ -269,7 +269,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
       sessionStorage.setItem("siq_plan_expiry", data.user.plan_expiry || "");
       sessionStorage.setItem("siq_plan_status", JSON.stringify(data.plan_status || {}));
       localStorage.setItem("userEmail", data.user.email);
-      setMsg("Welcome back, " + data.user.name + "!");
+      setMsg("AjaiAJ login successfully!");
       setTimeout(() => {
         if (data.user.plan === "none") {
           setView("plans");
@@ -374,7 +374,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
       sessionStorage.setItem("siq_plan_expiry", data.user.plan_expiry || "");
       sessionStorage.setItem("siq_plan_status", JSON.stringify(data.plan_status || {}));
       localStorage.setItem("userEmail", data.user.email);
-      setMsg("Welcome, " + data.user.name + "!");
+      setMsg("AjaiAJ login successfully!");
       setTimeout(() => {
         if (data.user.plan === "none") {
           setView("plans");
@@ -412,7 +412,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
     }
   };
 
-  const GOOGLE_CLIENT_ID = "505753164861-3s7egj0sp4c2pg8t9r743dpqeq1jib70.apps.googleusercontent.com"; // Replace with your actual Client ID
+
 
   return (
     <>
@@ -421,6 +421,17 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
         @keyframes float { 0% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-20px) scale(1.05); } 100% { transform: translateY(0px) scale(1); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes successPop {
+          0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+          70% { transform: scale(1.02) translateY(-2px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes checkBounce {
+          0% { transform: scale(0); }
+          50% { transform: scale(1.4); }
+          100% { transform: scale(1); }
+        }
+
         
         .login-bg {
           min-height: 100vh; display: flex; background: linear-gradient(-45deg, #020617, #0f172a, #1e1b4b, #020617);
@@ -503,7 +514,15 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
         .footer-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 24px; flex-wrap: wrap; }
 
         .err-box { color: #fca5a5; font-size: 13px; font-weight: 600; margin-bottom: 20px; text-align: center; background: rgba(239, 68, 68, 0.15); padding: 12px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); animation: fadeIn 0.3s ease; }
-        .success-badge { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; padding: 12px 20px; display: flex; align-items: center; gap: 10px; color: #34d399; font-weight: 700; font-size: 14px; margin-bottom: 20px; }
+        .success-badge { 
+          background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; 
+          padding: 14px 20px; display: flex; align-items: center; gap: 12px; color: #34d399; 
+          font-weight: 700; font-size: 15px; margin-bottom: 24px; 
+          animation: successPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.2);
+        }
+        .success-icon { animation: checkBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both; }
+
 
         @media (max-width: 960px) {
           .auth-container { flex-direction: column; max-width: 500px; border-radius: 24px; }
@@ -524,11 +543,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
           <div className="auth-left">
             {/* Top-left Logo — matches landing page style */}
             <div className="auth-logo">
-              <img src="/selleriq-icon.png" alt="SellerIQ Pro" className="auth-logo-icon" />
-              <div className="auth-logo-wordmark">
-                <div className="auth-logo-name">SellerIQ <span>Pro</span></div>
-                <div className="auth-logo-tagline">Commerce Intelligence</div>
-              </div>
+              <img src="/selleriqpro-logo.png" alt="SellerIQ Pro" style={{ height: '52px', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))' }} />
             </div>
 
             <div className="brand-badge">
@@ -828,7 +843,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
                     </div>
 
                     {/* Coupon */}
-                    <a href="#" style={{ display: 'block', color: '#818cf8', fontSize: 13, fontWeight: 600, textDecoration: 'none', marginBottom: 20 }}>Have a coupon code?</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); alert("Coupon codes are currently disabled for your region."); }} style={{ display: 'block', color: '#818cf8', fontSize: 13, fontWeight: 600, textDecoration: 'none', marginBottom: 20 }}>Have a coupon code?</a>
 
                     {/* CTA Button */}
                     <button
@@ -949,7 +964,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
                         </button>
                       </div>
                       {err && <div className="err-box">{err}</div>}
-                      {msg && <div className="success-badge"><CheckCircle size={18} />{msg}</div>}
+                      {msg && <div className="success-badge"><CheckCircle size={20} className="success-icon" />{msg}</div>}
                       <button type="submit" className="auth-btn" disabled={isLoading}>
                         {isLoading ? "Authenticating..." : "Login to Dashboard"}
                         {!isLoading && <ArrowRight size={20} />}
@@ -992,7 +1007,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
                     </div>
 
                     {regErr && <div className="err-box">{regErr}</div>}
-                    {regMsg && <div className="success-badge"><CheckCircle size={18} />{regMsg}</div>}
+                    {regMsg && <div className="success-badge"><CheckCircle size={20} className="success-icon" />{regMsg}</div>}
 
                     <form onSubmit={handleRegister}>
                       {/* Name */}

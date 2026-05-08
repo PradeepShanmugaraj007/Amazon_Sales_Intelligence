@@ -340,7 +340,7 @@ const UploadSection = ({ onFileSelect, activePlan = "starter", usageStats, inges
         )}
 
         {/* Error message from parent */}
-        {msg && !loading && (
+        {msg && msg !== "Success" && !loading && (
           <div style={{ color: "#ef4444", marginTop: 24, padding: "12px 24px", background: "rgba(239,68,68,0.1)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)" }}>
             {msg}
           </div>

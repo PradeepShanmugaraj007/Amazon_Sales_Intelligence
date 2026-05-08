@@ -71,12 +71,9 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
   const LandingDashboardPreview = () => (
     <div style={{ padding: '2rem' }}>
       <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <img src="/favicon.png" alt="Logo" style={{ width: 44, height: 44, borderRadius: 12 }} />
-          <div>
-            <div className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Enterprise Intelligence</div>
-            <div className="text-xl font-black">Demo Edition Hub</div>
-          </div>
+        <div className="flex items-center gap-3">
+          <img src="/selleriqpro-logo.png" alt="SellerIQ Pro" style={{ height: 42, objectFit: 'contain' }} />
+          <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>SellerIQ <span style={{ color: BRAND }}>Pro</span></span>
         </div>
         <div className="badge bg-indigo-500/10 text-indigo-400 border-indigo-500/20">Preview Mode</div>
       </div>
@@ -217,12 +214,11 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
       </div>
 
       <header>
-        <div className="logo">
-          <img src="/favicon.png" alt="SellerIQ Pro Logo" className="logo-icon" style={{ borderRadius: '8px', width: '36px', height: '36px' }} />
-          <div className="logo-wordmark">
-            <div className="logo-name">SellerIQ <span>Pro</span></div>
-            <div className="logo-tagline">Commerce Intelligence</div>
-          </div>
+        <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src="/selleriqpro-logo.png" alt="SellerIQ Pro Logo" style={{ height: '42px', objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.15))' }} />
+          <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', display: 'flex', alignItems: 'center' }}>
+            SellerIQ<span style={{ color: 'var(--primary)', marginLeft: '2px' }}>Pro</span>
+          </span>
         </div>
         <nav>
           <ul>
@@ -825,7 +821,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                 <li><Check className="check" size={18} /> Email Support</li>
                 <li><Check className="check" size={18} /> Basic Analytics</li>
               </ul>
-              <button onClick={onGetStarted} className="btn-outline">Choose Starter</button>
+              <button onClick={onLogin} className="btn-outline">Choose Starter</button>
             </div>
 
             <div className="pricing-card glass pro fade-in-on-scroll">
@@ -841,7 +837,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                 <li><Check className="check" size={18} /> AI Fraud Detection</li>
                 <li><Check className="check" size={18} /> Predictive Forecasting</li>
               </ul>
-              <button onClick={onGetStarted} className="btn-primary">Choose Pro</button>
+              <button onClick={onLogin} className="btn-primary">Choose Pro</button>
             </div>
 
             <div className="pricing-card glass fade-in-on-scroll">
@@ -856,7 +852,7 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
                 <li><Check className="check" size={18} /> Full API Access</li>
                 <li><Check className="check" size={18} /> Custom Integrations</li>
               </ul>
-              <button onClick={onGetStarted} className="btn-outline">Contact Sales</button>
+              <button onClick={onLogin} className="btn-outline">Contact Sales</button>
             </div>
           </div>
         </section>
@@ -952,11 +948,8 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
         <div className="footer-container">
           <div className="footer-main">
             <div className="footer-brand">
-              <div className="logo" style={{ marginBottom: '1.5rem' }}>
-                <div className="logo-icon">
-                  <BarChart3 size={24} color="white" />
-                </div>
-                <span className="logo-text">SellerIQ Pro</span>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <img src="/selleriqpro-logo.png" alt="SellerIQ Pro" style={{ height: '56px', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' }} />
               </div>
               <p>The enterprise standard for marketplace intelligence and automated tax compliance.</p>
               <div className="social-links">

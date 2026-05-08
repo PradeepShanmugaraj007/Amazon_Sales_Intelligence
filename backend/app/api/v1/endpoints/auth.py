@@ -317,7 +317,8 @@ async def google_login(req: GoogleLoginRequest, db: AsyncSession = Depends(get_d
             idinfo = id_token.verify_oauth2_token(
                 req.credential, 
                 auth_requests.Request(), 
-                settings.GOOGLE_CLIENT_ID
+                settings.GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=60
             )
             email = idinfo['email']
             name = idinfo.get('name', email.split('@')[0])
@@ -396,7 +397,9 @@ async def google_login(req: GoogleLoginRequest, db: AsyncSession = Depends(get_d
                 }
             }
         }
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid Google token")
+    except ValueError as ve:
+        print(f"DEBUG: Google Login ValueError: {str(ve)}")
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(ve)}")
     except Exception as e:
+        print(f"DEBUG: Google Login Exception: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Google authentication failed: {str(e)}")

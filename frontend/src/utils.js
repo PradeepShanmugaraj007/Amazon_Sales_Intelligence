@@ -201,39 +201,6 @@ export const processData = (rows) => {
     }
   });
 
-  // ── Date Chronology Normalization ──────────────────────────────────────
-  let hasDates = shipments.some(r => r["Invoice Date"]);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (!hasDates) {
-    shipments.forEach((r, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() - (i % 60)); // Distribute orders over 60 days
-      r["Invoice Date"] = d.toISOString().split('T')[0];
-    });
-  } else {
-    // Determine if data is stale (> 3 days old) and shift to yesterday
-    const dates = shipments.map(r => parseDate(r["Invoice Date"])).filter(Boolean);
-    if (dates.length > 0) {
-      const maxDate = new Date(Math.max(...dates));
-      const yesterday = new Date(today);
-      yesterday.setDate(today.getDate() - 1);
-      
-      const diffTime = yesterday.getTime() - maxDate.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays > 3) {
-        shipments.forEach(r => {
-          const d = parseDate(r["Invoice Date"]);
-          if (d) {
-             d.setDate(d.getDate() + diffDays);
-             r["Invoice Date"] = d.toISOString().split('T')[0];
-          }
-        });
-      }
-    }
-  }
 
   // ── Daily Sales (Strict YYYY-MM-DD Bucketing) ───────────────────────────
   const byDate = {};
@@ -385,8 +352,25 @@ export const processData = (rows) => {
   
   const b2bOrders = shipments.filter(r => r["Gstin"] || r["GSTIN"] || r["Buyer Name"]?.includes("(B2B)")).length;
   const b2bPercentage = totalOrders ? (b2bOrders / totalOrders * 100).toFixed(1) : "0";
-  const fba = shipments.filter(r => (r["Fulfillment Channel"] || "").toUpperCase() === "FBA").length;
-  const mfn = shipments.filter(r => (r["Fulfillment Channel"] || "").toUpperCase() === "MFN").length;
+  const getFulfillmentVal = (r) => {
+    const keys = Object.keys(r);
+    for (const k of keys) {
+      const lk = k.toLowerCase().replace(/[\s_-]/g, '');
+      if (lk === 'fulfillmentchannel' || lk === 'channel' || lk === 'fulfillment') {
+        return String(r[k] || "").trim().toLowerCase();
+      }
+    }
+    return "";
+  };
+
+  const fba = shipments.filter(r => {
+    const v = getFulfillmentVal(r);
+    return v === "fba" || v === "amazon" || v === "afn";
+  }).length;
+  const mfn = shipments.filter(r => {
+    const v = getFulfillmentVal(r);
+    return v === "mfn" || v === "merchant" || v === "seller" || v === "easy ship" || v === "easyship";
+  }).length;
   const channelData = [{ name: "FBA", value: fba }, { name: "MFN", value: mfn }];
   
   const topState = stateList.length > 0 ? stateList[0].state : "Unknown";

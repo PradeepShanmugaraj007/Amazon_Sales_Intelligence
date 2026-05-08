@@ -96,6 +96,9 @@ async def analyze_report(
                     if lower_h in ['invoicedate','date']: mapped_key = 'Invoice Date'
                     if lower_h in ['gstin','buyerregistration']: mapped_key = 'Gstin'
                     
+                    if mapped_key == 'Invoice Date' and val:
+                        val = str(val).split(' ')[0].split('T')[0]
+                        
                     obj[mapped_key] = val
                 all_parsed_rows.append(obj)
 
