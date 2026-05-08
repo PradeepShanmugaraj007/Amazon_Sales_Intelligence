@@ -1,4 +1,6 @@
 import io
+import os
+import tempfile
 import pandas as pd
 from datetime import datetime
 import uuid
@@ -41,26 +43,36 @@ async def analyze_report(
             await db.refresh(db_user)
 
         for file in files:
-            contents = await file.read()
-            if len(contents) > max_bytes:
-                raise HTTPException(status_code=413, detail="File too large")
-            
-            # 2. Parse using Pandas
+            file_size = 0
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+                while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                    file_size += len(chunk)
+                    if file_size > max_bytes:
+                        tmp.close()
+                        os.unlink(tmp.name)
+                        raise HTTPException(status_code=413, detail="File too large")
+                    tmp.write(chunk)
+                tmp_path = tmp.name
+
+            # 2. Parse using Pandas directly from disk
             try:
                 if file.filename.endswith(('.xlsx', '.xls')):
-                    df = pd.read_excel(io.BytesIO(contents))
+                    df = pd.read_excel(tmp_path)
                 else:
-                    decoded = None
-                    for enc in ['utf-8', 'latin-1', 'cp1252']:
+                    try:
+                        df = pd.read_csv(tmp_path, encoding='utf-8')
+                    except UnicodeDecodeError:
                         try:
-                            decoded = contents.decode(enc)
-                            break
-                        except: continue
-                    if not decoded:
-                         raise Exception("Could not decode CSV file. Please use UTF-8.")
-                    df = pd.read_csv(io.StringIO(decoded))
+                            df = pd.read_csv(tmp_path, encoding='latin-1')
+                        except UnicodeDecodeError:
+                            df = pd.read_csv(tmp_path, encoding='cp1252')
             except Exception as e:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
                 raise HTTPException(status_code=400, detail=f"Parse Error: {str(e)}")
+            
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
             df = df.fillna("")
             headers = df.columns.tolist()

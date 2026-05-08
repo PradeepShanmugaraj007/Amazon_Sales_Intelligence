@@ -10,7 +10,10 @@ class Settings:
     PROJECT_NAME: str = "SellerIQ Pro"
     API_V1_STR: str = "/api/v1"
     
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "super-secret-siq-key-2026-amazon-intelligence-secure")
+    jwt_secret = os.getenv("JWT_SECRET")
+    if not jwt_secret:
+        raise ValueError("FATAL: JWT_SECRET environment variable is not set. Refusing to start for security reasons.")
+    JWT_SECRET: str = jwt_secret
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 1 Week
     
@@ -28,5 +31,8 @@ class Settings:
     SMTP_PASS: str = os.getenv("SMTP_PASS", "")
     SALES_EMAIL: str = os.getenv("SALES_EMAIL", SMTP_USER)
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    
+    # CORS Security
+    ALLOWED_ORIGINS: list = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5001,http://127.0.0.1:5173").split(",")
 
 settings = Settings()
