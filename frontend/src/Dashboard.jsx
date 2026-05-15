@@ -157,7 +157,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
 
   const ALL_TABS = ["overview", "sku", "regions", "insights", "tax", "fraud", "forecast", "saas", "about", "support"];
   const LOCKED_TABS = [
-    ...(canAccess('pro') ? [] : ['fraud', 'forecast']),
+    ...(canAccess('pro') || isDemoMode ? [] : ['fraud', 'forecast']),
   ];
   const KNOWN_TABS = ALL_TABS;
 
@@ -171,12 +171,14 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
       const hash = window.location.hash.replace('#', '');
       if (KNOWN_TABS.includes(hash)) {
         // Redirect to overview if locked tab is accessed directly
-        setActiveTabState(LOCKED_TABS.includes(hash) ? "overview" : hash);
+        const isProOrDemo = canAccess('pro') || isDemoMode;
+        const isLocked = !isProOrDemo && (hash === 'fraud' || hash === 'forecast');
+        setActiveTabState(isLocked ? "overview" : hash);
       }
     };
     window.addEventListener('hashchange', handlePopState);
     return () => window.removeEventListener('hashchange', handlePopState);
-  }, []);
+  }, [activePlan, isDemoMode]);
   
   const setActiveTab = (tabId) => {
     const valid = KNOWN_TABS.includes(tabId) ? tabId : "overview";
@@ -185,6 +187,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
   };
   const [dateRange, setDateRange] = useState("all");
   const [skuFilter, setSkuFilter] = useState("");
+  const [forecastSkuFilter, setForecastSkuFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("all");
   const [chartView, setChartView] = useState("daily");
   const [startDate, setStartDate] = useState('');
@@ -357,6 +360,60 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
     grid6: { display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 16, marginBottom: 24 }
   };
 
+  // Inject responsive main-area CSS (targets inline-style elements that CSS file cannot reach)
+  const responsiveMainCSS = `
+    @media (max-width: 768px) {
+      /* Layout */
+      .siq-dash-main { margin-left: 0 !important; padding: 68px 12px 40px !important; width: 100vw !important; overflow-x: hidden !important; }
+      .siq-dash-header { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+      .siq-dash-header h1 { font-size: 1.05rem !important; }
+      .siq-dash-header > div:last-child { width: 100% !important; display: flex !important; align-items: center !important; justify-content: space-between !important; flex-wrap: wrap !important; gap: 6px !important; }
+
+      /* Filter bar */
+      .siq-filter-bar { flex-wrap: wrap !important; gap: 8px !important; padding: 10px !important; }
+      .siq-filter-bar > div { flex: 1 1 calc(50% - 8px) !important; min-width: 0 !important; }
+      .siq-filter-bar select, .siq-filter-bar input { width: 100% !important; font-size: 11px !important; padding: 5px 7px !important; }
+
+      /* KPI grids — 2 cols on mobile (more readable than 1) */
+      .siq-kpi-grid-4 { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+      .siq-kpi-grid-6 { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+
+      /* Two-col chart rows collapse */
+      .siq-two-col { grid-template-columns: 1fr !important; gap: 14px !important; }
+
+      /* Charts — prevent overflow, scale axis text, reduce height */
+      .recharts-responsive-container { max-width: 100% !important; overflow: hidden !important; min-height: 200px !important; max-height: 255px !important; }
+      .recharts-legend-wrapper { position: static !important; width: 100% !important; margin-top: 8px !important; }
+      .recharts-cartesian-axis-tick text { font-size: 9px !important; fill: #94a3b8 !important; }
+      .recharts-xAxis .recharts-cartesian-axis-tick text { font-size: 8px !important; }
+      .recharts-default-tooltip { font-size: 11px !important; padding: 6px 10px !important; }
+      .recharts-tooltip-wrapper { max-width: 170px !important; }
+      .recharts-polar-angle-axis-tick text { font-size: 8px !important; }
+      svg.recharts-surface { max-width: 100% !important; }
+
+      /* SKU search */
+      .siq-sku-bar-header { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+      .siq-sku-bar-input { width: 100% !important; min-width: unset !important; }
+      .siq-sku-result-row { flex-wrap: wrap !important; gap: 8px !important; }
+      .siq-sku-result-row .siq-sku-metrics { flex-wrap: wrap !important; gap: 8px !important; width: 100% !important; margin-top: 6px !important; }
+
+      /* Welcome bar */
+      .siq-welcome-bar { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; padding: 14px !important; }
+      .siq-welcome-bar input { width: 100% !important; }
+
+      /* Upgrade grid */
+      .siq-upgrade-grid { grid-template-columns: 1fr !important; max-width: 100% !important; }
+      .siq-card { padding: 14px !important; }
+    }
+
+    @media (max-width: 420px) {
+      .siq-dash-main { padding: 62px 10px 28px !important; }
+      .siq-kpi-grid-4, .siq-kpi-grid-6 { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+      .recharts-responsive-container { min-height: 175px !important; max-height: 210px !important; }
+      .recharts-cartesian-axis-tick text { font-size: 8px !important; }
+    }
+  `;
+
   const generateExcel = () => {
     setIsExporting(true);
     try {
@@ -482,8 +539,6 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
       const appendIfData = (data, name) => {
         if (data && data.length > 0) {
           XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), name);
-        } else {
-          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{"Message": "No Records found for this category"}]), name);
         }
       };
 
@@ -552,14 +607,17 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         ];
 
         XLSX.utils.book_append_sheet(wb, b2bSheet, "b2b");
-      } else {
-        appendIfData(b2bData, "b2b");
       }
+      
       appendIfData(cdnrData, "cdnr");
       appendIfData(cdnurData, "cdnur");
       appendIfData(b2clData, "b2cl");
       appendIfData(Array.from(b2csMap.values()), "b2cs");
       appendIfData(Array.from(hsnMap.values()), "hsn");
+
+      if (wb.SheetNames.length === 0) {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{"Message": "No Records found for this export"}]), "Empty");
+      }
 
       XLSX.writeFile(wb, `GSTR1_Ready_Report_${activePlan.toUpperCase()}.xlsx`);
     } catch (err) {
@@ -572,6 +630,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
 
   return (
     <div style={styles.container}>
+      <style>{responsiveMainCSS}</style>
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -582,7 +641,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         usageStats={usageStats}
       />
 
-      <div style={styles.main} className="dash-main" id="dashboard-export-area">
+      <div style={styles.main} className="dash-main siq-dash-main" id="dashboard-export-area">
 
         {showExpiryBanner && !isExporting && (
           <div style={{
@@ -641,7 +700,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
 
 
 
-        <div style={styles.header}>
+        <div style={styles.header} className="siq-dash-header">
           <div>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: BRAND }}>
               {isExporting ? "Comprehensive Executive Report" : (
@@ -774,7 +833,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         </div>
 
         {!isExporting && activeTab !== "fraud" && activeTab !== "saas" && activeTab !== "about" && activeTab !== "support" && activeTab !== "insights" && (
-          <div style={styles.filterBar}>
+          <div style={styles.filterBar} className="siq-filter-bar">
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>Period:</span>
               <select style={styles.select} value={dateRange} onChange={e => setDateRange(e.target.value)}>
@@ -872,7 +931,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
               );
             })()}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+            <div className="siq-kpi-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
               <KpiCard label="Gross Revenue" value={fmt(stats.grossRevenue)} icon={<Activity size={20} />} color={BRAND} />
               <KpiCard label="Net Revenue" value={fmt(stats.netRevenue)} icon={<Activity size={20} />} color={ACCENT} />
               <KpiCard label="Total Orders" value={stats.totalOrders} icon={<Package size={20} />} color={TEAL} />
@@ -889,7 +948,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
               <KpiCard label="Top State" value={stats.topState} icon={<MapPin size={20} />} color={BRAND} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginBottom: 24 }}>
+            <div className="siq-two-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24, marginBottom: 24 }}>
               {/* Daily Revenue Line Chart */}
               <div style={styles.card}>
                 <SectionHeader title={`${chartView[0].toUpperCase() + chartView.slice(1)} Revenue`} sub="Shipment revenue over time" />
@@ -908,7 +967,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
               <div style={styles.card}>
                  <SectionHeader title="Category Breakdown" sub="Revenue by inferred category" />
                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={stats.categoryBreakdown || []} layout="vertical">
+                    <BarChart data={(stats.categoryBreakdown || []).slice(0, 8)} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                       <XAxis type="number" tick={{fontSize: 10}} tickFormatter={v => fmt(v)} />
                       <YAxis type="category" dataKey="name" width={110} tick={{fontSize: 10}} />
@@ -923,8 +982,8 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
                  <SectionHeader title="Payment Methods" sub="Revenue mix by payment type" />
                  <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
-                      <Pie data={stats.paymentMethodMix || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
-                        {(stats.paymentMethodMix || []).map((entry, index) => (
+                      <Pie data={(stats.paymentMethodMix || []).slice(0, 5)} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                        {(stats.paymentMethodMix || []).slice(0, 5).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={colorFor(index)} />
                         ))}
                       </Pie>
@@ -967,7 +1026,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         {(activeTab === "fraud" || isExporting) && (
            <div style={{ marginTop: isExporting ? 60 : 0 }}>
              {isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 30, color: "#0f172a" }}>3. Threat Intelligence</h2>}
-             {canAccess('pro') ? (
+             {canAccess('pro') || isDemoMode ? (
                <FraudAnalysis fraudData={fraudData} />
              ) : (
                <UpgradeBanner feature="Risk & Fraud Detection" requiredPlan="Pro" color="#a855f7" icon="🛡️" activePlan={activePlan} />
@@ -999,7 +1058,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
 
              <div style={styles.card}>
                <SectionHeader title="📦 Fulfillment Channels" sub="FBA vs MFN Volume Distribution" />
-               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'center' }}>
+               <div className="siq-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'center' }}>
                  <ResponsiveContainer width="100%" height={260}>
                    <PieChart>
                       <Pie data={stats.channelData || []} dataKey="value" innerRadius={60} outerRadius={85} paddingAngle={5} stroke="none">
@@ -1290,9 +1349,110 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
         {(activeTab === "forecast" || isExporting) && stats && (
           <div className="page-container" style={{ marginTop: isExporting ? 60 : 0 }}>
             {isExporting && <h2 style={{ fontSize: 28, borderBottom: "4px solid #2563eb", paddingBottom: 10, marginBottom: 24, color: "#0f172a" }}>6. Algorithmic Forecasting</h2>}
-            {canAccess('pro') ? (
+            {canAccess('pro') || isDemoMode ? (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+                {/* ── SKU SEARCH & ANALYSIS BAR ── */}
+                {!isExporting && (() => {
+                  const allSkus = stats.skuVelocity || [];
+                  const matchedSkus = forecastSkuFilter
+                    ? allSkus.filter(s => s.sku?.toLowerCase().includes(forecastSkuFilter.toLowerCase()))
+                    : [];
+                  return (
+                    <div style={{
+                      background: 'white', borderRadius: 16, padding: '20px 24px', marginBottom: 24,
+                      border: '1px solid #e2e8f0', boxShadow: '0 4px 20px -8px rgba(0,0,0,0.08)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: matchedSkus.length > 0 ? 16 : 0 }}>
+                        <div style={{ fontSize: 20 }}>🔍</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', marginBottom: 2 }}>SKU Search & Analysis</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8' }}>Search any SKU to see its individual velocity, revenue, and projections</div>
+                        </div>
+                        <div style={{ position: 'relative', minWidth: 280 }}>
+                          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                          <input
+                            type="text"
+                            placeholder="Type SKU name or ASIN..."
+                            value={forecastSkuFilter}
+                            onChange={e => setForecastSkuFilter(e.target.value)}
+                            style={{
+                              width: '100%', paddingLeft: 38, paddingRight: forecastSkuFilter ? 36 : 14,
+                              paddingTop: 10, paddingBottom: 10,
+                              borderRadius: 10, border: '1.5px solid ' + (forecastSkuFilter ? BRAND : '#e2e8f0'),
+                              fontSize: 13, outline: 'none', background: forecastSkuFilter ? `${BRAND}06` : '#f8fafc',
+                              transition: 'border-color 0.2s, background 0.2s', boxSizing: 'border-box'
+                            }}
+                          />
+                          {forecastSkuFilter && (
+                            <button
+                              onClick={() => setForecastSkuFilter('')}
+                              style={{
+                                position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                                background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8',
+                                display: 'flex', alignItems: 'center', padding: 2, fontSize: 16, lineHeight: 1
+                              }}
+                            >×</button>
+                          )}
+                        </div>
+                      </div>
+                      {forecastSkuFilter && (
+                        matchedSkus.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+                            {matchedSkus.slice(0, 6).map((s, i) => {
+                              const skuRevenue = (rawData || [])
+                                .filter(r => r['SKU'] === s.sku || r['ASIN'] === s.sku)
+                                .reduce((sum, r) => sum + parseAmount(r['Invoice Amount'] || r['item-price'] || 0), 0);
+                              const proj7 = Math.round((s.dailyVelocity || 0) * 7);
+                              const proj30 = Math.round((s.dailyVelocity || 0) * 30);
+                              const cols = [BRAND, PURPLE, GREEN, TEAL, '#f59e0b', '#ef4444'];
+                              const c = cols[i % cols.length];
+                              return (
+                                <div key={i} style={{
+                                  display: 'flex', alignItems: 'center', gap: 16,
+                                  padding: '12px 16px', borderRadius: 12,
+                                  background: c + '08', border: `1px solid ${c}25`
+                                }}>
+                                  <div style={{ width: 32, height: 32, borderRadius: 8, background: c + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, color: c, flexShrink: 0 }}>#{i+1}</div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sku}</div>
+                                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Velocity: <b>{(s.dailyVelocity || 0).toFixed(1)}/day</b></div>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 20, flexShrink: 0 }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>7-Day Proj</div>
+                                      <div style={{ fontSize: 13, fontWeight: 900, color: BRAND }}>{proj7} units</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>30-Day Proj</div>
+                                      <div style={{ fontSize: 13, fontWeight: 900, color: PURPLE }}>{proj30} units</div>
+                                    </div>
+                                    {skuRevenue > 0 && (
+                                      <div style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Revenue</div>
+                                        <div style={{ fontSize: 13, fontWeight: 900, color: GREEN }}>{fmt(skuRevenue)}</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {matchedSkus.length > 6 && (
+                              <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', padding: '4px 0' }}>
+                                + {matchedSkus.length - 6} more SKUs match "{forecastSkuFilter}"
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ padding: '12px 16px', background: '#fef2f2', borderRadius: 10, border: '1px solid #fecaca', fontSize: 13, color: '#ef4444', marginTop: 4 }}>
+                            No SKUs found matching "<strong>{forecastSkuFilter}</strong>"
+                          </div>
+                        )
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="siq-kpi-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
                   {[
                     { label: "7-Day Forecast", value: fmt(stats.forecast7), icon: "📅", color: BRAND, sub: `~${fmt((stats.forecast7 || 0) / 7)}/day` },
                     { label: "30-Day Forecast", value: fmt(stats.forecast30), icon: "📆", color: PURPLE, sub: `~${fmt((stats.forecast30 || 0) / 30)}/day` },
@@ -1329,11 +1489,29 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                <div className="siq-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
                   <div style={styles.card}>
-                    <SectionHeader title="⚡ Top SKU Velocity" sub="Fastest-moving products by daily dispatch rate" />
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                      <SectionHeader title="⚡ Top SKU Velocity" sub="Fastest-moving products by daily dispatch rate" />
+                      <div style={{ position: "relative", marginTop: 4 }}>
+                        <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                        <input 
+                          type="text" 
+                          placeholder="Search SKU..." 
+                          value={forecastSkuFilter}
+                          onChange={e => setForecastSkuFilter(e.target.value)}
+                          style={{
+                            paddingLeft: 30, paddingRight: 12, paddingTop: 6, paddingBottom: 6,
+                            borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc",
+                            fontSize: 12, outline: "none", width: 140
+                          }} 
+                        />
+                      </div>
+                    </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
-                      {(stats.skuVelocity || []).slice(0, 5).map((s, i) => {
+                      {(stats.skuVelocity || [])
+                        .filter(s => !forecastSkuFilter || s.sku?.toLowerCase().includes(forecastSkuFilter.toLowerCase()))
+                        .slice(0, 5).map((s, i) => {
                         const maxV = stats.skuVelocity[0]?.dailyVelocity || 1;
                         const pct = Math.min(100, ((s.dailyVelocity || 0) / maxV) * 100);
                         const cols = [BRAND, PURPLE, GREEN, TEAL, ACCENT];
@@ -1396,7 +1574,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 32 }}>
+          <div className="siq-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 32 }}>
             <div className="glass" style={{ padding: '40px', borderRadius: 24, border: '1px solid #e2e8f0', background: 'white' }}>
               <div style={{ padding: 16, background: `${BRAND}10`, width: 'fit-content', borderRadius: 16, marginBottom: 24, color: BRAND }}>
                 <TrendingUp size={32} />
@@ -1414,7 +1592,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
+          <div className="siq-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
             {[
               { stat: "99.9%", label: "MTR Reconciliation Accuracy" },
               { stat: "0ms", label: "Stateless Data Retention" },
@@ -1432,7 +1610,7 @@ const Dashboard = ({ rawData, filename, activePlan, source, session_id, fraudDat
 
       {/* 🎧 SUPPORT PAGE */}
       {!isExporting && activeTab === "support" && (
-        <div className="page-container" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 32, marginTop: 40 }}>
+        <div className="page-container siq-grid-1-3" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 32, marginTop: 40 }}>
           <div className="glass" style={{ padding: "40px" }}>
             <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 24, color: "#0f172a" }}>Need Technical Assistance?</h2>
             <form style={{ display: "flex", flexDirection: "column", gap: 20 }} onSubmit={e => { e.preventDefault(); alert("Support request submitted successfully. A specialist will respond shortly."); }}>

@@ -85,7 +85,7 @@ const ShopifyDashboard = ({ rawData, filename, onReset }) => {
       </div>
 
       {/* MAIN */}
-      <div style={{ flex: 1, marginLeft: 280, padding: "32px 40px", minWidth: 0 }}>
+      <div className="siq-dash-main" style={{ flex: 1, marginLeft: 280, padding: "32px 40px", minWidth: 0 }}>
         <div style={{ marginBottom: 32 }}>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: SHOPIFY_DARK }}>
             {activeTab === "overview" && "Direct-to-Consumer Analytics"}
@@ -97,7 +97,7 @@ const ShopifyDashboard = ({ rawData, filename, onReset }) => {
 
         {activeTab === "overview" && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: 24 }}>
+            <div className="siq-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: 24 }}>
                <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 10px 30px rgba(0,0,0,0.02)", border: "1px solid #d1fae5" }}>
                  <div style={{ fontSize: 12, fontWeight: 800, color: "#10b981", textTransform: "uppercase" }}>Gross Sales Volume</div>
                  <div style={{ fontSize: 32, fontWeight: 900, color: SHOPIFY_DARK, marginTop: 8 }}>{fmt(d2cStats.revenue)}</div>

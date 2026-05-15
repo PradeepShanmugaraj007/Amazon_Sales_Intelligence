@@ -1,41 +1,197 @@
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import {
-  BarChart3,
-  ShieldCheck,
-  FileText,
-  TrendingUp,
-  ArrowRight,
-  Check,
-  ExternalLink,
-  X,
-  Link,
-  Database,
-  Zap,
-  PieChart,
-  Globe,
-  Lock,
-  Cpu,
-  ChevronDown,
-  Star,
-  Quote,
-  UploadCloud,
-  Rocket,
-  Sparkles,
-  Server,
-  Layers,
-  Activity,
-  Code,
-  ShoppingBag,
-  Terminal,
-  Play
-} from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { motion, useInView } from 'motion/react';
+import React, { useRef } from 'react';
+import { ArrowRight } from 'lucide-react';
+import Marquee from 'react-fast-marquee';
 import { useGoogleLogin } from '@react-oauth/google';
-import { analyzeReport } from '../api';
-import { processData, fmt, BRAND, GREEN } from '../utils';
-import '../landing.css';
-import '../responsive_overrides.css';
+import { Background3D } from './Background3D';
+
+const avatars = [
+  'https://files.peachworlds.com/website/910b4202-5d3e-480f-abeb-7e06818b962b/4.png',
+  'https://files.peachworlds.com/website/d2097a74-2a6f-4400-8581-59c4c14e10af/1.png',
+  'https://files.peachworlds.com/website/998a0f6b-6a69-4de9-83b2-053d4da10fc6/3.png',
+  'https://files.peachworlds.com/website/9ee86a72-2173-442f-b411-546a6630ef37/2.png'
+];
+
+const logos = [
+  'https://files.peachworlds.com/website/955bda87-77b0-4fb2-ac87-d0e3a166c06c/div-framer-1lv732o-4.svg',
+  'https://files.peachworlds.com/website/747063b3-4605-478f-a4cc-37b7937ee00c/div-framer-1lv732o-.svg',
+  'https://files.peachworlds.com/website/db2c7d5c-7e53-433b-8c3f-2197cf22730d/prada-logo-1.svg',
+  'https://files.peachworlds.com/website/fd9ad756-35fb-4ebc-97a1-fe757cf288d2/div-framer-1lv732o-2.svg',
+  'https://files.peachworlds.com/website/1b7d6318-117e-4296-9758-7b490083c24b/disney-wordmark-1.svg',
+  'https://files.peachworlds.com/website/3866ece9-b368-4552-bdc5-d50b3c897476/div-framer-1lv732o-3.svg',
+  'https://files.peachworlds.com/website/267a3959-7ece-4cbb-888b-005fc2da3598/div-framer-1lv732o-5.svg',
+];
+
+const featureCards = [
+  {
+    idx: '01',
+    label: 'DATA INGESTION',
+    title: 'Automated CSV parsing.',
+    desc: 'Automated CSV upload parsing for Amazon MTR, Shopify, and custom ERP flows with 99.9% accuracy.',
+    img: 'https://files.peachworlds.com/website/ef1af829-2926-4bfa-adf1-bc4ed3653130/frame-1707479969.jpg'
+  },
+  {
+    idx: '02',
+    label: 'RISK SCRUBBING',
+    title: 'Advanced AI Fraud Analysis.',
+    desc: 'Advanced AI Fraud & Risk Analysis engine to protect your revenue streams from suspicious activities.',
+    img: 'https://files.peachworlds.com/website/6c5b9dbc-a5cf-4d7e-ba61-86826215523b/frame-1707479970.jpg'
+  },
+  {
+    idx: '03',
+    label: 'TAX COMPLIANCE',
+    title: 'Multi-channel tax reporting.',
+    desc: 'Automated GST/Tax breakdown and reporting for multi-channel operations, ready for filing.',
+    img: 'https://files.peachworlds.com/website/c8f984e9-3162-431c-ab7e-96f2e5fa2e88/frame-1707479971.jpg'
+  }
+];
+
+const solutions = [
+  {
+     icon: 'https://files.peachworlds.com/website/78e021bd-adca-4fa4-8f3e-488c34dfc5de/saas-vector-1-1.png',
+     title: 'D2C Brands',
+     desc: 'Consolidate Shopify and Amazon data to understand your true customer acquisition cost and LTV.'
+  },
+  {
+     icon: 'https://files.peachworlds.com/website/391c0325-43ef-4481-8be3-2ff5ac827054/group.png',
+     title: 'Marketplace Aggregators',
+     desc: 'Manage hundreds of brands in a single dashboard with unified reporting and automated auditing.'
+  },
+  {
+     icon: '',
+     title: 'Tax Professionals',
+     desc: 'Automate the heavy lifting of marketplace tax reconciliation and provide accurate reports to clients.'
+  },
+  {
+     icon: 'https://files.peachworlds.com/website/33d7700e-d89e-4c5e-9b6a-5059ec89ac5e/frame.png',
+     title: 'Scale Effectively',
+     desc: 'Scale globally with robust API integrations, real-time data sync, and advanced risk scrubbing.'
+  }
+];
+
+function SolutionItem({ sol, i }: { sol: any; i: number }) {
+   const ref = useRef(null);
+   const isInView = useInView(ref, { margin: "-20% 0px -20% 0px" });
+
+   return (
+      <motion.div 
+         ref={ref}
+         initial={{ opacity: 0, y: 50 }}
+         animate={{ opacity: isInView ? 1 : 0.5, y: isInView ? 0 : 30, scale: isInView ? 1 : 0.95 }}
+         transition={{ duration: 0.7, ease: "easeOut" }}
+         className="relative overflow-hidden rounded-[32px] bg-white/5 backdrop-blur-md border border-white/10 p-10 md:p-12 min-h-[400px] flex flex-col justify-between transition-all duration-500 hover:bg-white/10 group"
+      >
+         <h3 className="font-display text-[32px] md:text-[40px] font-medium text-white mb-6 tracking-tight drop-shadow-sm z-10">
+            {sol.title}
+         </h3>
+
+         {/* Decorative Visuals based on index */}
+         <div className="absolute inset-y-0 right-0 w-[60%] pointer-events-none overflow-hidden origin-right transition-transform duration-700 ease-out group-hover:scale-105">
+            {i === 0 && (
+               <div className="absolute right-[-10%] top-[10%] grid grid-cols-3 gap-4 opacity-40">
+                  {[...Array(9)].map((_, j) => (
+                     <div key={j} className={`w-32 h-32 rounded-3xl border-2 ${j === 4 ? 'border-white bg-white/20' : 'border-white/30'} flex items-center justify-center relative`}>
+                        {j === 4 && (
+                           <>
+                              <div className="w-4 h-4 text-white/80">+</div>
+                              <svg className="absolute -bottom-6 -right-6 w-10 h-10 text-white drop-shadow-lg" viewBox="0 0 24 24" fill="currentColor">
+                                 <path d="M7 2l12 11.2-5.8.5 3.3 7.3-2.2 1-3.2-7.4-4.4 4.5z" />
+                              </svg>
+                           </>
+                        )}
+                     </div>
+                  ))}
+               </div>
+            )}
+            {i === 1 && (
+               <div className="absolute right-[5%] bottom-[-10%] w-64 h-48 rounded-t-3xl border-2 border-white/30 flex p-6 opacity-40">
+                  <div className="flex gap-2">
+                     <div className="w-3 h-3 rounded-full bg-white/50" />
+                     <div className="w-3 h-3 rounded-full bg-white/50" />
+                     <div className="w-3 h-3 rounded-full bg-white/50" />
+                  </div>
+               </div>
+            )}
+            {i === 2 && (
+               <div className="absolute right-[10%] top-[20%] w-48 h-48 rounded-full border border-white/20 opacity-40 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-full border border-white/30 flex items-center justify-center">
+                     <div className="w-16 h-16 rounded-full border border-white/40" />
+                  </div>
+               </div>
+            )}
+            {i === 3 && (
+               <div className="absolute right-[-5%] top-[20%] flex flex-col gap-6 opacity-40">
+                  <div className="w-48 h-12 rounded-full border-2 border-white/30" />
+                  <div className="w-64 h-12 rounded-full border-2 border-white/30 -ml-8" />
+                  <div className="w-40 h-12 rounded-full border-2 border-white/30 ml-4" />
+               </div>
+            )}
+         </div>
+         
+         <div className="max-w-[480px] z-10 mt-32">
+            <p className="text-white/80 text-[18px] md:text-[20px] leading-relaxed drop-shadow-sm">
+               {sol.desc}
+            </p>
+         </div>
+      </motion.div>
+   );
+}
+
+function AdvantageItem({ item, i }: { item: any, i: number }) {
+   const ref = useRef(null);
+   const isInView = useInView(ref, { margin: "-20% 0px -20% 0px" });
+
+   return (
+       <motion.div 
+          ref={ref}
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: isInView ? 1 : 0.5, y: isInView ? 0 : 30, scale: isInView ? 1 : 0.95 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="relative overflow-hidden rounded-[32px] bg-white/5 backdrop-blur-md border border-white/10 p-10 md:p-12 min-h-[300px] flex flex-col justify-between transition-all duration-500 hover:bg-white/10 group"
+       >
+          <h3 className="font-display text-[56px] md:text-[72px] font-medium text-white mb-6 leading-none tracking-tight drop-shadow-sm z-10">
+             {item.stat}
+          </h3>
+
+          <div className="absolute inset-0 pointer-events-none overflow-hidden origin-right transition-transform duration-700 ease-out group-hover:scale-[1.03]">
+            {i === 0 && (
+               <div className="absolute right-0 bottom-0 flex items-end gap-3 opacity-40 translate-x-[15%] translate-y-[15%]">
+                  <div className="w-12 h-20 bg-white/30 rounded-t-xl" />
+                  <div className="w-12 h-32 bg-white/50 rounded-t-xl" />
+                  <div className="w-12 h-44 bg-white/80 rounded-t-xl relative">
+                     <span className="absolute -top-8 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_15px_rgba(255,255,255,1)]" />
+                  </div>
+               </div>
+            )}
+            {i === 1 && (
+               <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[20%] w-48 h-48 rounded-full border-[16px] border-white/10 border-t-white/50 opacity-80" />
+            )}
+            {i === 2 && (
+               <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[10%] flex -space-x-6 opacity-60">
+                  <div className="w-20 h-20 rounded-full border border-white/30 bg-white/5" />
+                  <div className="w-20 h-20 rounded-full border border-white/30 bg-white/10" />
+                  <div className="w-20 h-20 rounded-full border border-white/30 bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                     <div className="text-white font-medium text-xl leading-none">+</div>
+                  </div>
+               </div>
+            )}
+            {i === 3 && (
+               <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[15%] opacity-50 p-6 border-2 border-white/20 rounded-3xl w-48 h-32 rotate-[-10deg]">
+                  <div className="w-full h-3 bg-white/30 rounded-full mb-4" />
+                  <div className="w-3/4 h-3 bg-white/30 rounded-full mb-4" />
+                  <div className="w-2/3 h-3 bg-white/30 rounded-full" />
+               </div>
+            )}
+          </div>
+          
+          <div className="z-10 mt-16">
+             <p className="text-[20px] md:text-[24px] font-medium text-white/90 drop-shadow-sm">
+                {item.text}
+             </p>
+          </div>
+       </motion.div>
+   );
+}
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -43,6 +199,7 @@ interface LandingPageProps {
   onLogin: () => void;
   onGoogleSuccess?: (response: any) => void;
 }
+
 export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogleSuccess }: LandingPageProps) {
   const googleLogin = useGoogleLogin({
     onSuccess: (codeResponse) => {
@@ -50,962 +207,528 @@ export default function LandingPage({ onGetStarted, onTryFree, onLogin, onGoogle
     },
     onError: (error) => console.log('Login Failed:', error)
   });
-  const [demoText, setDemoText] = useState('');
-  const [isTyping, setIsTyping] = useState(true);
-  const [msg, setMsg] = useState('');
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-
-  const handleFutureLink = (e: React.MouseEvent) => {
-    e.preventDefault();
-    alert("This page is part of our Enterprise Portal and is currently under active development. Please contact sales for access.");
-  };
-
-  const handleSubscribe = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    alert("Successfully subscribed to SellerIQ Pro insights!");
-  };
-
-  const fullText = "Analyze March 2024 Amazon MTR for high-risk tax anomalies...";
-
-  // Interactive Preview Placeholder for Landing Page
-  const LandingDashboardPreview = () => (
-    <div style={{ padding: '2rem' }}>
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <img src="/selleriqpro-logo.png" alt="SellerIQ Pro" style={{ height: 42, objectFit: 'contain' }} />
-          <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>SellerIQ <span style={{ color: BRAND }}>Pro</span></span>
-        </div>
-        <div className="badge bg-indigo-500/10 text-indigo-400 border-indigo-500/20">Preview Mode</div>
-      </div>
-
-      <div style={{ height: 260, width: '100%', marginBottom: '2rem', background: 'rgba(255,255,255,0.02)', borderRadius: 20, border: '1px border rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {/* Simple mockup chart */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, height: 160 }}>
-          {[60, 40, 80, 50, 90, 70, 95].map((h, i) => (
-            <motion.div
-              key={i}
-              initial={{ height: 0 }}
-              animate={{ height: `${h}%` }}
-              transition={{ duration: 1.5, delay: i * 0.1 }}
-              style={{ width: 30, background: `linear-gradient(to top, ${BRAND}, #818cf8)`, borderRadius: '8px 8px 0 0', opacity: 0.8 }}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-        {[
-          { l: "Revenue Snapshot", v: "₹12.4L", c: BRAND },
-          { l: "Tax Breakdown", v: "₹1.2L", c: "#818cf8" },
-          { l: "SKU Velocity", v: "Hot", c: "#10b981" }
-        ].map((item, i) => (
-          <div key={i} className="p-5 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-            <div style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', color: '#64748b', marginBottom: 8 }}>{item.l}</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: item.c }}>{item.v}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ marginTop: 24, padding: '16px', borderRadius: 16, background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.1))', border: '1px solid rgba(99,102,241,0.2)', textAlign: 'center' }}>
-        <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-          <b>Instant Analysis</b> is now available in our dedicated Demo Dashboard.
-          <br />Upload files up to 1MB and get high-precision results in seconds.
-        </p>
-        <button onClick={onTryFree} className="btn-primary" style={{ marginTop: 12, padding: '0.6rem 1.4rem', fontSize: '0.8rem' }}>Open Demo Dashboard</button>
-      </div>
-    </div>
-  );
-
-  const chartData = [
-    { name: 'Mon', rev: 4000 },
-    { name: 'Tue', rev: 3000 },
-    { name: 'Wed', rev: 6000 },
-    { name: 'Thu', rev: 8000 },
-    { name: 'Fri', rev: 5000 },
-    { name: 'Sat', rev: 9000 },
-    { name: 'Sun', rev: 12000 },
-  ];
-
-  useEffect(() => {
-    if (isTyping) {
-      if (demoText.length < fullText.length) {
-        const timeout = setTimeout(() => {
-          setDemoText(fullText.slice(0, demoText.length + 1));
-        }, 50);
-        return () => clearTimeout(timeout);
-      } else {
-        const timeout = setTimeout(() => setIsTyping(false), 2000);
-        return () => clearTimeout(timeout);
-      }
-    } else {
-      const timeout = setTimeout(() => {
-        setDemoText('');
-        setIsTyping(true);
-      }, 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [demoText, isTyping]);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const glow = document.querySelector('.mouse-glow') as HTMLElement;
-      if (glow) {
-        glow.style.left = `${e.clientX}px`;
-        glow.style.top = `${e.clientY}px`;
-      }
-
-      // Section specific glow
-      const sectionGlow = document.querySelector('#features .section-glow') as HTMLElement;
-      if (sectionGlow) {
-        const section = document.getElementById('features');
-        if (section) {
-          const rect = section.getBoundingClientRect();
-          sectionGlow.style.left = `${e.clientX - rect.left}px`;
-          sectionGlow.style.top = `${e.clientY - rect.top}px`;
-        }
-      }
-
-      // Card spotlights
-      const cards = document.querySelectorAll('.feature-card');
-      cards.forEach((card) => {
-        const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        (card as HTMLElement).style.setProperty('--mouse-x', `${x}px`);
-        (card as HTMLElement).style.setProperty('--mouse-y', `${y}px`);
-      });
-    };
-
-    const handleScroll = () => {
-      const header = document.querySelector('header');
-      if (window.scrollY > 50) {
-        header?.classList.add('scrolled');
-      } else {
-        header?.classList.remove('scrolled');
-      }
-
-      const reveals = document.querySelectorAll('.fade-in-on-scroll');
-      reveals.forEach((element) => {
-        const windowHeight = window.innerHeight;
-        const elementTop = element.getBoundingClientRect().top;
-        const elementVisible = 150;
-        if (elementTop < windowHeight - elementVisible) {
-          element.classList.add('fade-in');
-        }
-      });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
 
   return (
-    <div className="landing-container">
-      <div className="mouse-glow"></div>
-      <div className="bg-grid"></div>
-      <div className="bg-blobs">
-        <div className="blob blob-1"></div>
-        <div className="blob blob-2"></div>
-        <div className="blob blob-3"></div>
-      </div>
-
-      <header>
-        <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src="/selleriqpro-logo.png" alt="SellerIQ Pro Logo" style={{ height: '42px', objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.15))' }} />
-          <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', display: 'flex', alignItems: 'center' }}>
-            SellerIQ<span style={{ color: 'var(--primary)', marginLeft: '2px' }}>Pro</span>
-          </span>
-        </div>
-        <nav>
-          <ul>
-            <li><a href="#features">Features</a></li>
-            <li><a href="#analytics">Analytics</a></li>
-            <li><a href="#pricing">Pricing</a></li>
-          </ul>
-        </nav>
-        <div className="auth-buttons">
-          <button onClick={onLogin} className="btn-outline">Sign In</button>
-          <button onClick={onGetStarted} className="btn-primary">Get Started</button>
-        </div>
-      </header>
-
-      <main>
-        <section className="hero">
-          <div className="hero-bg-pattern"></div>
-          <div className="hero-content fade-in">
-
-            <h1>Unify Your Commerce Intelligence.</h1>
-            <p>
-              The enterprise standard for marketplace data. Transform complex Amazon, Shopify, and ERP data into
-              actionable intelligence, automated compliance, and predictive growth.
-            </p>
-            <div className="hero-actions">
-              <button onClick={onGetStarted} className="btn-primary">Deploy Your Intelligence <ArrowRight size={18} style={{ marginLeft: '8px', display: 'inline' }} /></button>
-              <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })} className="btn-outline" style={{ color: 'var(--text-main)', borderColor: 'var(--glass-border)', background: 'white' }}>Demo</button>
+    <div className="min-h-screen text-slate-900 font-sans selection:bg-purple-200 selection:text-purple-900 relative">
+      <Background3D />
+      
+      <div className="relative z-10 flex flex-col min-h-screen">
+        {/* Navbar */}
+        <header className="absolute top-0 left-0 right-0 z-50 py-8">
+          <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-[20px] font-medium tracking-tight text-white">
+                SellerIQ Pro
+              </span>
             </div>
-            <div className="flex items-center gap-4" style={{ marginTop: '3rem' }}>
-              <div className="flex -space-x-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <img
-                    key={i}
-                    src={`https://picsum.photos/seed/user${i}/100/100`}
-                    alt="User"
-                    className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
-                    referrerPolicy="no-referrer"
-                  />
-                ))}
-              </div>
-              <div className="text-sm font-medium text-dim">
-                <span className="text-main font-bold">500+</span> global brands scaling with SellerIQ
-              </div>
+
+            <nav className="hidden md:flex items-center gap-10 text-[15px] font-medium text-white/90">
+              <a href="#features" className="hover:text-white transition-colors">Features</a>
+              <a href="#analytics" className="hover:text-white transition-colors">Analytics</a>
+              <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+            </nav>
+
+            <div className="flex items-center gap-4">
+              <button onClick={onLogin} className="text-white text-[13px] font-semibold hover:text-white/80 transition-colors">Sign In</button>
+              <button onClick={onGetStarted} className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold transition-all bg-black text-white hover:bg-black/80">
+                Get Started <span className="bg-white text-black rounded-full p-[2px]"><ArrowRight className="w-3 h-3" /></span>
+              </button>
             </div>
           </div>
-          <div className="hero-visual fade-in" style={{ animationDelay: '0.2s' }}>
-            <div className="floating-preview">
-              <div className="preview-user">
-                <img src="https://picsum.photos/seed/ceo/100/100" alt="CEO" referrerPolicy="no-referrer" />
-                <div>
-                  <div className="text-xs font-bold">Revenue Growth</div>
-                  <div className="text-[10px] text-dim">Real-time tracking</div>
-                </div>
-              </div>
-              <div className="preview-bar-group">
-                <div className="preview-bar"><motion.div className="preview-bar-fill" animate={{ width: '85%' }} transition={{ duration: 2, delay: 1 }}></motion.div></div>
-                <div className="preview-bar"><motion.div className="preview-bar-fill" animate={{ width: '65%' }} transition={{ duration: 2, delay: 1.2 }}></motion.div></div>
-                <div className="preview-bar"><motion.div className="preview-bar-fill" animate={{ width: '95%' }} transition={{ duration: 2, delay: 1.4 }}></motion.div></div>
-              </div>
-              <div className="mt-4 flex justify-between items-end">
-                <div className="text-xl font-black text-primary">+₹12.4L</div>
-                <div className="text-[10px] font-bold text-secondary">↑ 24%</div>
-              </div>
-            </div>
-            <div className="bento-item bento-1 glass">
-              <div>
-                <div className="bento-label">Global Revenue</div>
-                <div className="bento-value">₹84.2L</div>
-              </div>
-              <div className="bento-chart-line"></div>
-            </div>
-            <div className="bento-item bento-2 glass">
-              <div>
-                <div className="bento-label">Risk Score</div>
-                <div className="bento-value" style={{ color: 'var(--secondary)', background: 'none', WebkitTextFillColor: 'initial' }}>98.4%</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={24} className="text-secondary" />
-                <span className="text-xs font-bold text-dim">AI Protected</span>
-              </div>
-            </div>
-            <div className="bento-item bento-3 glass">
-              <div>
-                <div className="bento-label">Active Flows</div>
-                <div className="bento-value">12</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Zap size={24} className="text-amber-600" />
-                <span className="text-xs font-bold text-dim">Real-time Sync</span>
-              </div>
-            </div>
-          </div>
-        </section>
+        </header>
 
-        <section className="depth-signals">
-          <div className="signal-item">
-            <Cpu size={20} />
-            <span>Advanced AI Models</span>
-          </div>
-          <div className="signal-item">
-            <Server size={20} />
-            <span>Large-Scale Data Handling</span>
-          </div>
-          <div className="signal-item">
-            <Layers size={20} />
-            <span>Enterprise-Ready Architecture</span>
-          </div>
-        </section>
-
-        <section id="demo" className="live-demo-section" style={{ padding: '5rem 2rem', background: 'var(--bg-soft)', position: 'relative' }}>
-          <div className="section-glow" style={{ top: '50%', left: '50%', opacity: 0.1 }}></div>
-          <div className="section-header" style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <div className="badge" style={{ marginBottom: '1.5rem' }}>Core Intelligence</div>
-            <h2 className="section-title">The Demo Dashboard</h2>
-            <p className="section-subtitle">Experience how SellerIQ Pro converts raw marketplace noise into analytical signals. <b>Get started with a 1MB Demo Analysis.</b></p>
-          </div>
-
-          <div className="live-demo-container fade-in-on-scroll">
-            <div className="demo-window" style={{
-              boxShadow: '0 50px 100px -20px rgba(0,0,0,0.25)',
-              overflow: 'hidden',
-              minHeight: 500
-            }}>
-              <div className="demo-header" style={{ background: '#1e293b' }}>
-                <div className="flex gap-2 mr-4">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
-                </div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Terminal size={12} />
-                  SellerIQ Dashboard Preview
-                </div>
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col w-full h-full">
+          {/* 1. Hero Section (Transparent) */}
+          <section className="relative px-6 pt-32 pb-24 md:pt-[22vh] md:pb-[15vh] max-w-5xl mx-auto w-full flex flex-col items-center text-center z-10 pointer-events-none">
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              className="max-w-4xl"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/20 bg-white/5 backdrop-blur-md mb-8">
+                <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.6)] animate-pulse" />
+                <span className="text-xs font-semibold text-white/90 tracking-wide uppercase">Core Intelligence Active</span>
               </div>
 
-              <div className="demo-body" style={{ background: '#0f172a', color: '#f8fafc', padding: '0', minHeight: 450, position: 'relative' }}>
-                {LandingDashboardPreview()}
-              </div>
-            </div>
-          </div>
-        </section>
+              <h1 className="font-display text-6xl md:text-[90px] font-medium tracking-tight text-white leading-[1.05] mb-8 drop-shadow-lg mix-blend-overlay">
+                Unify Your Commerce<br/>Intelligence.
+              </h1>
+            </motion.div>
 
-        <section className="amazon-sync-section">
-          <div className="sync-container">
-            <div className="sync-visual fade-in">
-              <div className="sync-pulse"></div>
-              <div className="sync-pulse delay-1"></div>
-              <div className="sync-pulse delay-2"></div>
-              <div className="amazon-logo-wrapper">
-                <img
-                  src="https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg"
-                  alt="Amazon"
-                  className="amazon-sync-icon"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div className="sync-data-flow">
-                {[...Array(6)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="data-dot"
-                    animate={{
-                      x: [-150, 0],
-                      opacity: [0, 1, 0],
-                      scale: [0.5, 1, 0.5]
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      delay: i * 0.4,
-                      ease: "linear"
-                    }}
-                    style={{
-                      top: `${25 + i * 10}%`,
-                      left: '0'
-                    }}
-                  />
-                ))}
-                {[...Array(6)].map((_, i) => (
-                  <motion.div
-                    key={i + 6}
-                    className="data-dot"
-                    animate={{
-                      x: [150, 0],
-                      opacity: [0, 1, 0],
-                      scale: [0.5, 1, 0.5]
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      delay: i * 0.4,
-                      ease: "linear"
-                    }}
-                    style={{
-                      top: `${25 + i * 10}%`,
-                      right: '0'
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="sync-info fade-in" style={{ animationDelay: '0.2s' }}>
-              <div className="badge">Native MTR Integration</div>
-              <h2>Architected for Amazon</h2>
-              <p>
-                SellerIQ Pro is built from the ground up to handle the unique complexities of
-                Amazon Merchant Tax Reports. Our engine provides 100% reconciliation accuracy
-                with zero manual effort.
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="max-w-2xl flex flex-col items-center"
+            >
+              <p className="text-[18px] text-white/80 mb-10 leading-relaxed font-medium">
+                The enterprise standard for marketplace data. Transform complex Amazon, Shopify, and ERP data into actionable intelligence, automated compliance, and predictive growth.
               </p>
-              <div className="sync-status">
-                <div className="status-indicator">
-                  <div className="status-dot"></div>
-                  <div className="status-ping"></div>
-                </div>
-                <span>Live Amazon MTR Sync Active</span>
+              <div className="flex items-center gap-4 pointer-events-auto">
+                <button onClick={onGetStarted} className="flex items-center gap-2 bg-white text-black px-[28px] py-[16px] rounded-full font-semibold text-sm hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-white/20">
+                  Deploy Your Intelligence <span className="bg-black text-white rounded-full p-[4px] ml-1"><ArrowRight className="w-3 h-3" /></span>
+                </button>
+                <button onClick={onTryFree} className="text-white text-sm font-semibold hover:text-white/80 transition-colors px-[28px] py-[16px] border border-white/20 rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10">
+                  Demo
+                </button>
               </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="section-divider"></div>
-
-        <section id="how-it-works" className="how-it-works">
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <div className="badge" style={{ marginBottom: '1.5rem' }}>Process</div>
-            <h2 className="section-title fade-in-on-scroll">How SellerIQ Pro Works</h2>
-            <p className="section-subtitle fade-in-on-scroll">Three simple steps to unlock your marketplace intelligence.</p>
-          </div>
-          <div className="steps-container">
-            {[
-              {
-                icon: (
-                  <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    <UploadCloud size={32} />
-                  </motion.div>
-                ),
-                title: "Upload Data",
-                desc: "Securely upload your Amazon MTR or Shopify CSV files. Our engine handles the rest.",
-                color: "var(--primary)"
-              },
-              {
-                icon: (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                  >
-                    <Cpu size={32} />
-                  </motion.div>
-                ),
-                title: "AI Analysis",
-                desc: "Our proprietary algorithms scrub for risks, calculate taxes, and identify trends.",
-                color: "var(--secondary)"
-              },
-              {
-                icon: (
-                  <motion.div
-                    animate={{ y: [0, -8, 0] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    <Rocket size={32} />
-                  </motion.div>
-                ),
-                title: "Scale Fast",
-                desc: "Get actionable insights and automated reports to grow your business with confidence.",
-                color: "var(--accent)"
-              }
-            ].map((step, i) => (
-              <div key={i} className="step-card fade-in-on-scroll">
-                <div className="step-number">0{i + 1}</div>
-                <div className="step-icon" style={{ color: step.color }}>{step.icon}</div>
-                <h3>{step.title}</h3>
-                <p>{step.desc}</p>
-                {i < 2 && <div className="step-connector"></div>}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="section-divider"></div>
-
-        <section id="features" className="features">
-          <div className="section-glow"></div>
-          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-            <div className="badge" style={{ marginBottom: '1.5rem' }}>Capabilities</div>
-            <h2 className="section-title fade-in-on-scroll">Enterprise-Grade Features</h2>
-            <p className="section-subtitle fade-in-on-scroll">Everything you need to scale your marketplace operations with confidence.</p>
-          </div>
-          <div className="features-grid">
-            <div className="feature-card feature-ingestion glass fade-in-on-scroll">
-              <div className="feature-image">
-                <img src="/feature_data_ingestion_png_1776314911908.png" alt="Data Ingestion" />
-              </div>
-              <div className="feature-icon"><Database /></div>
-              <h3>Data Ingestion</h3>
-              <p>Automated CSV upload parsing for Amazon MTR, Shopify, and custom ERP flows with 99.9% accuracy.</p>
-            </div>
-            <div className="feature-card feature-risk glass fade-in-on-scroll">
-              <div className="feature-image">
-                <img src="/feature_risk_scrubbing_png_1776314928014.png" alt="Risk Scrubbing" />
-              </div>
-              <div className="feature-icon"><ShieldCheck /></div>
-              <h3>Risk Scrubbing</h3>
-              <p>Advanced AI Fraud & Risk Analysis engine to protect your revenue streams from suspicious activities.</p>
-            </div>
-            <div className="feature-card feature-tax glass fade-in-on-scroll">
-              <div className="feature-image">
-                <img src="/feature_tax_compliance_png_1776314943200.png" alt="Tax Compliance" />
-              </div>
-              <div className="feature-icon"><FileText /></div>
-              <h3>Tax Compliance</h3>
-              <p>Automated GST/Tax breakdown and reporting for multi-channel operations, ready for filing.</p>
-            </div>
-            <div className="feature-card feature-forecasting glass fade-in-on-scroll">
-              <div className="feature-image">
-                <img src="/feature_forecasting_png_1776314957403.png" alt="Predictive Forecasting" />
-              </div>
-              <div className="feature-icon"><TrendingUp /></div>
-              <h3>Predictive Forecasting</h3>
-              <p>Algorithmic revenue forecasting based on historical trends, seasonality, and market data.</p>
-            </div>
-            <div className="feature-card feature-scaling glass fade-in-on-scroll">
-              <div className="feature-image">
-                <img src="/feature_global_scaling_png_1776314971687.png" alt="Global Scaling" />
-              </div>
-              <div className="feature-icon"><Globe /></div>
-              <h3>Global Scaling</h3>
-              <p>Support for multiple currencies and international marketplaces with localized reporting.</p>
-            </div>
-            <div className="feature-card feature-security glass fade-in-on-scroll">
-              <div className="feature-image">
-                <img src="/feature_security_png_1776314984952.png" alt="Bank-Level Security" />
-              </div>
-              <div className="feature-icon"><Lock /></div>
-              <h3>Bank-Level Security</h3>
-              <p>Enterprise-grade encryption and SOC2 compliant data handling for your business intelligence.</p>
-            </div>
-
-            {/* New Features */}
-            <div className="feature-card glass fade-in-on-scroll">
-              <div className="feature-image">
-                <img src="/feature_realtime_png_1776314998914.png" alt="Real-time Processing" />
-              </div>
-              <div className="feature-icon"><Activity /></div>
-              <h3>Real-time Processing</h3>
-              <p>Sub-second data synchronization across all your marketplace channels and ERP systems.</p>
-            </div>
-            <div className="feature-card glass fade-in-on-scroll">
-              <div className="feature-image">
-                <img src="/feature_insights_png_1776315017119.png" alt="Data-driven Insights" />
-              </div>
-              <div className="feature-icon"><PieChart /></div>
-              <h3>Data-driven Insights</h3>
-              <p>Deep-dive analytics that uncover hidden opportunities for margin optimization and growth.</p>
-            </div>
-            <div className="feature-card glass fade-in-on-scroll">
-              <div className="feature-image">
-                <img src="/feature_api_png_1776315031255.png" alt="API-ready Integration" />
-              </div>
-              <div className="feature-icon"><Code /></div>
-              <h3>API-ready Integration</h3>
-              <p>Robust REST APIs and webhooks to integrate SellerIQ intelligence into your existing tech stack.</p>
-            </div>
-          </div>
-        </section>
-
-        <div className="section-divider"></div>
-
-        <section className="use-cases">
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <div className="badge" style={{ marginBottom: '1.5rem' }}>Use Cases</div>
-            <h2 className="section-title">Built for Every Scale</h2>
-            <p className="section-subtitle">Tailored solutions for different business needs.</p>
-          </div>
-          <div className="use-cases-grid">
-            <div className="use-case-card fade-in-on-scroll">
-              <div className="use-case-icon"><ShoppingBag /></div>
-              <h3>D2C Brands</h3>
-              <p>Consolidate Shopify and Amazon data to understand your true customer acquisition cost and LTV.</p>
-            </div>
-            <div className="use-case-card fade-in-on-scroll">
-              <div className="use-case-icon"><Database /></div>
-              <h3>Marketplace Aggregators</h3>
-              <p>Manage hundreds of brands in a single dashboard with unified reporting and automated auditing.</p>
-            </div>
-            <div className="use-case-card fade-in-on-scroll">
-              <div className="use-case-icon"><ShieldCheck /></div>
-              <h3>Tax Professionals</h3>
-              <p>Automate the heavy lifting of marketplace tax reconciliation and provide accurate reports to clients.</p>
-            </div>
-          </div>
-        </section>
-
-        <div className="section-divider"></div>
-
-        <section id="analytics" className="analytics" style={{ background: 'white', padding: '5rem 2rem' }}>
-          <div className="analytics-content fade-in-on-scroll">
-            <div className="section-header" style={{ textAlign: 'center', marginBottom: '3rem' }}>
-              <div className="amazon-badge-top" style={{ marginBottom: '2rem' }}>
-                <img
-                  src="https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg"
-                  alt="Amazon"
-                  className="amazon-top-logo"
-                />
-                <span className="font-black text-[10px] tracking-[0.2em] uppercase">Intelligence Engine</span>
-              </div>
-              <h2 className="section-title">Analytical Precision by Design</h2>
-              <p className="section-subtitle">
-                Stop relying on spreadsheets. Our intelligence engine provides the only 100% accurate reconciliation
-                standard for enterprise marketplace operations.
-              </p>
-            </div>
-
-            <div className="analytics-layout-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '3rem', maxWidth: '1400px', margin: '0 auto' }}>
-              {/* Main Charts area */}
-              <div className="charts-column">
-                {/* Bar Chart Section (TOP) */}
-                <div className="chart-preview-box glass mb-10" style={{ padding: '2rem', borderRadius: 32, border: '1px solid rgba(0,0,0,0.05)', background: '#fff' }}>
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="text-xs font-black uppercase tracking-widest text-slate-400">Inventory Velocity (Daily)</div>
-                    <div className="badge bg-indigo-50 text-primary border-none text-[10px]">Real-time</div>
-                  </div>
-                  <div className="chart-bars" style={{ height: 250, display: 'flex', alignItems: 'flex-end', gap: '1rem', padding: '0 1rem' }}>
-                    {[
-                      { h: '65%', t: '₹8.2L', d: 0.1 },
-                      { h: '85%', t: '₹12.4L', d: 0.2 },
-                      { h: '55%', t: '₹6.1L', d: 0.3 },
-                      { h: '95%', t: '₹15.8L', d: 0.4 },
-                      { h: '75%', t: '₹10.2L', d: 0.5 },
-                      { h: '90%', t: '₹13.5L', d: 0.6 },
-                      { h: '80%', t: '₹11.2L', d: 0.7 }
-                    ].map((bar, i) => (
-                      <motion.div
-                        key={i}
-                        className="bar"
-                        initial={{ height: 0 }}
-                        whileInView={{ height: bar.h }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 1, delay: bar.d, ease: "easeOut" }}
-                        style={{ flex: 1, background: 'linear-gradient(to top, var(--primary), #818cf8)', borderRadius: '8px 8px 4px 4px', position: 'relative' }}
-                      >
-                        <span className="bar-tooltip" style={{ opacity: 1, bottom: '105%' }}>{bar.t}</span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Line Chart Section (BELOW) */}
-                <div className="chart-preview-box glass" style={{ padding: '2rem', borderRadius: 32, border: '1px solid rgba(0,0,0,0.05)', background: '#fff' }}>
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="text-xs font-black uppercase tracking-widest text-slate-400">Revenue Trajectory</div>
-                    <TrendingUp size={16} className="text-primary" />
-                  </div>
-                  <div style={{ height: 300, width: '100%' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData}>
-                        <defs>
-                          <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
-                            <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
-                        <XAxis
-                          dataKey="name"
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }}
-                        />
-                        <YAxis hide />
-                        <Tooltip />
-                        <Area
-                          type="monotone"
-                          dataKey="rev"
-                          stroke="#4f46e5"
-                          strokeWidth={3}
-                          fillOpacity={1}
-                          fill="url(#colorRev)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-
-              {/* Side Column info area (Details) */}
-              <div className="details-column">
-                <div style={{ position: 'sticky', top: '8rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {[
-                    { label: 'Total Marketplace Revenue', value: '₹24.8L', trend: '↑ 18.4%', desc: 'Unified cross-channel rev.', tint: '#10b981' },
-                    { label: 'Audit Reconciliation', value: '100.0%', trend: 'Verified', desc: 'No transaction gaps found.', tint: '#6366f1' },
-                    { label: 'MTR Processing Level', value: 'Tier 3', trend: 'Priority', desc: 'Advanced scrubbing active.', tint: '#f59e0b' },
-                    { label: 'Estimated Tax Liability', value: '₹4.2L', trend: 'Calculated', desc: 'Ready for GSTR filing.', tint: '#8b5cf6' }
-                  ].map((stat, i) => (
-                    <div key={i} style={{
-                      padding: '1.5rem',
-                      borderRadius: '1.5rem',
-                      background: '#ffffff',
-                      border: '1px solid #e2e8f0',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-                    }}>
-                      <div style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', marginBottom: '0.5rem' }}>{stat.label}</div>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0f172a', marginBottom: '0.5rem', letterSpacing: '-0.03em' }}>{stat.value}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '99px', background: `${stat.tint}15`, color: stat.tint }}>{stat.trend}</span>
-                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#94a3b8' }}>{stat.desc}</span>
-                      </div>
-                    </div>
+              
+              <div className="flex items-center gap-3 text-white mt-12 opacity-80">
+                <div className="flex -space-x-3">
+                  {avatars.map((url, i) => (
+                    <img key={i} src={url} alt="avatar" className="w-9 h-9 rounded-full border-2 border-[#bca1e0]/50 object-cover shadow-sm" />
                   ))}
+                </div>
+                <span className="text-sm font-medium ml-2 text-white/90">500+ global brands scaling with SellerIQ Pro</span>
+              </div>
 
-                  <div style={{
-                    padding: '1.5rem',
-                    borderRadius: '1.5rem',
-                    background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
-                    color: 'white',
-                    boxShadow: '0 10px 30px -10px rgba(79, 70, 229, 0.5)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <ShieldCheck size={20} color="#c7d2fe" />
-                      <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#e0e7ff' }}>Enterprise SOC2</span>
-                    </div>
-                    <p style={{ fontSize: '0.8rem', color: '#c7d2fe', fontWeight: 500, lineHeight: 1.6, margin: 0 }}>
-                      Your business data is processed using bank-level isolated compute nodes.
-                    </p>
-                  </div>
+              <div className="grid grid-cols-3 gap-6 mt-12 border-t border-white/20 pt-8 w-full pointer-events-auto">
+                <div className="flex flex-col items-center">
+                  <div className="text-2xl font-display font-medium text-white mb-1">₹84.2L</div>
+                  <div className="text-xs text-white/60 tracking-wider uppercase">Global Revenue</div>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="text-2xl font-display font-medium text-white mb-1">98.4%</div>
+                  <div className="text-xs text-white/60 tracking-wider uppercase">Risk Score (AI)</div>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div className="text-2xl font-display font-medium text-white mb-1">12</div>
+                  <div className="text-xs text-white/60 tracking-wider uppercase">Active Flows</div>
                 </div>
               </div>
-            </div>
-          </div>
-        </section>
+            </motion.div>
+          </section>
 
-        <div className="section-divider"></div>
-
-        <section className="testimonials">
-          <div className="testimonials-container">
-            <div className="testimonials-header fade-in-on-scroll">
-              <div className="badge">Success Stories</div>
-              <h2>Trusted by 500+ Enterprise Sellers</h2>
-              <p>See how SellerIQ Pro is transforming marketplace operations globally.</p>
-            </div>
-            <div className="testimonials-grid">
-              {[
-                {
-                  name: "Rahul Sharma",
-                  role: "CEO, TechGadgets India",
-                  text: "SellerIQ Pro saved us over 40 hours a month in tax reconciliation. The Amazon MTR sync is flawless.",
-                  avatar: "https://picsum.photos/seed/rahul/100/100"
-                },
-                {
-                  name: "Sarah Jenkins",
-                  role: "Operations Head, GlobalTrade",
-                  text: "The risk scrubbing feature identified ₹12L in suspicious transactions within the first week. Essential tool.",
-                  avatar: "https://picsum.photos/seed/sarah/100/100"
-                },
-                {
-                  name: "Amit Patel",
-                  role: "Founder, HomeDecor Pro",
-                  text: "Predictive forecasting has completely changed how we manage inventory. No more stockouts during peak season.",
-                  avatar: "https://picsum.photos/seed/amit/100/100"
-                }
-              ].map((t, i) => (
-                <div key={i} className="testimonial-card glass fade-in-on-scroll">
-                  <div className="quote-icon"><Quote size={24} /></div>
-                  <p>"{t.text}"</p>
-                  <div className="testimonial-user">
-                    <img src={t.avatar} alt={t.name} referrerPolicy="no-referrer" />
-                    <div>
-                      <div className="user-name">{t.name}</div>
-                      <div className="user-role">{t.role}</div>
+          {/* 2. Platform Section (Transparent) */}
+          <section className="px-6 py-24 max-w-7xl mx-auto w-full z-10">
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col md:flex-row gap-12 items-end mb-20"
+            >
+               <div className="md:w-1/2">
+                 <h4 className="text-[11px] font-bold tracking-[0.2em] text-white/60 uppercase mb-5">Native MTR Integration</h4>
+                 <h2 className="font-display text-[56px] md:text-[64px] font-medium text-white leading-[1.1] tracking-tight drop-shadow-sm">
+                   Architected<br/>for Amazon.
+                 </h2>
+                 <div className="flex items-center gap-6 mt-12">
+                    <button onClick={onGetStarted} className="flex items-center justify-center gap-2 bg-white text-black px-[22px] py-[12px] rounded-full font-medium text-sm hover:scale-105 transition-transform duration-300">
+                      Get Started <span className="bg-black text-white rounded-full p-[2px]"><ArrowRight className="w-3 h-3" /></span>
+                    </button>
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/5">
+                       <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                       <span className="text-white text-xs font-medium">Live Amazon MTR Sync Active</span>
                     </div>
+                 </div>
+               </div>
+               <div className="md:w-1/2 pb-4">
+                 <p className="text-white/80 text-[18px] leading-relaxed max-w-[420px] drop-shadow-sm">
+                   SellerIQ Pro is built from the ground up to handle the unique complexities of Amazon Merchant Tax Reports. Our engine provides 100% reconciliation accuracy with zero manual effort.
+                 </p>
+               </div>
+            </motion.div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full relative group"
+            >
+              <div className="absolute inset-0 bg-white/20 rounded-[24px] blur-xl group-hover:blur-2xl transition-all duration-700 opacity-0 group-hover:opacity-100 mix-blend-overlay"></div>
+              <img src="https://files.peachworlds.com/website/1e7641cf-1746-4535-85f4-dc46e6975356/dash.png" alt="Dashboard" className="w-full rounded-[24px] shadow-2xl object-cover border border-white/10 relative z-10" />
+            </motion.div>
+          </section>
+
+          {/* 3. Clients Section (Transparent) */}
+          <section className="py-20 w-full text-center z-10 overflow-hidden">
+            <motion.div
+               initial={{ opacity: 0, y: 20 }}
+               whileInView={{ opacity: 1, y: 0 }}
+               viewport={{ once: true, margin: "-100px" }}
+               transition={{ duration: 0.8 }}
+               className="w-full"
+            >
+              <h4 className="text-[11px] font-bold tracking-[0.2em] text-white/60 uppercase mb-4">OUR CLIENTS</h4>
+              <h2 className="font-display text-[40px] font-medium text-white mb-16 tracking-tight drop-shadow-sm px-6">
+                Trusted by leading e-<br className="hidden sm:block" />commerce businesses.
+              </h2>
+              <Marquee gradient={true} gradientColor="#bca1e0" speed={40} className="w-full">
+                {logos.map((url, i) => (
+                   <img 
+                      key={i} 
+                      src={url} 
+                      alt="Logo" 
+                      className="h-8 md:h-10 mx-8 md:mx-16 object-contain text-white brightness-0 invert opacity-70 hover:opacity-100 transition-opacity" 
+                   />
+                ))}
+                {logos.map((url, i) => (
+                   <img 
+                      key={`dup-${i}`} 
+                      src={url} 
+                      alt="Logo" 
+                      className="h-8 md:h-10 mx-8 md:mx-16 object-contain text-white brightness-0 invert opacity-70 hover:opacity-100 transition-opacity" 
+                   />
+                ))}
+              </Marquee>
+            </motion.div>
+          </section>
+
+          <div className="backdrop-blur-[80px] bg-black/40 relative">
+            {/* 4. Solutions Section (Transparent) */}
+            <section className="px-6 py-32 max-w-7xl mx-auto w-full z-10">
+              <div className="flex flex-col lg:flex-row gap-16 items-start relative">
+                 <div className="lg:w-[40%] lg:sticky top-32 lg:backdrop-blur-xl lg:bg-white/5 p-8 -ml-8 rounded-[32px] border border-transparent lg:border-white/10 transition-all duration-300">
+                   <motion.h4 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true, margin: "-100px" }}
+                      transition={{ duration: 0.8, delay: 0.1 }}
+                      className="text-[11px] font-bold tracking-[0.2em] text-white/60 uppercase mb-5"
+                   >
+                      USE CASES
+                   </motion.h4>
+                   <motion.h2 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true, margin: "-100px" }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
+                      className="font-display text-[48px] md:text-[56px] font-medium text-white leading-[1.1] mb-8 tracking-tight drop-shadow-sm"
+                   >
+                     Built for<br/>Every Scale.
+                   </motion.h2>
+                   <motion.p 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true, margin: "-100px" }}
+                      transition={{ duration: 0.8, delay: 0.3 }}
+                      className="text-white/80 text-[18px] leading-relaxed max-w-[380px] drop-shadow-sm"
+                   >
+                     Tailored solutions for different business needs.
+                   </motion.p>
+                 </div>
+                 
+                 <div className="lg:w-[60%] flex flex-col gap-12 pb-16 pt-16 lg:pt-0">
+                    {solutions.map((sol, i) => (
+                       <SolutionItem key={i} sol={sol} i={i} />
+                    ))}
+                 </div>
+              </div>
+            </section>
+
+            {/* 5. Analytics Section (Transparent) */}
+            <section id="analytics" className="px-6 py-32 max-w-7xl mx-auto w-full z-10">
+               <div className="flex flex-col lg:flex-row gap-16 items-start relative">
+                  <div className="lg:w-[40%] lg:sticky top-32 lg:backdrop-blur-xl lg:bg-white/5 p-8 -ml-8 rounded-[32px] border border-transparent lg:border-white/10 transition-all duration-300">
+                     <motion.h4 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.8, delay: 0.1 }}
+                        className="text-[11px] font-bold tracking-[0.2em] text-white/60 uppercase mb-5"
+                     >
+                        ANALYTICS ENGINE
+                     </motion.h4>
+                     <motion.h2 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                        className="font-display text-[48px] md:text-[56px] font-medium text-white leading-[1.1] tracking-tight drop-shadow-sm mb-6"
+                     >
+                       Analytical Precision<br/>by Design.
+                     </motion.h2>
+                     <motion.p
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.8, delay: 0.3 }}
+                        className="text-[18px] text-white/80 leading-relaxed mb-6"
+                     >
+                       Stop relying on spreadsheets. Our intelligence engine provides the only 100% accurate reconciliation standard for enterprise marketplace operations.
+                     </motion.p>
+                     <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.8, delay: 0.4 }}
+                        className="inline-flex items-center gap-2 px-4 py-2 mt-4 rounded border border-white/20 bg-white/5"
+                     >
+                        <span className="w-2 h-2 rounded-full bg-green-400" />
+                        <span className="text-sm font-semibold text-white/90">Enterprise SOC2 Certified</span>
+                     </motion.div>
                   </div>
-                  <div className="stars">
-                    {[...Array(5)].map((_, j) => <Star key={j} size={14} fill="currentColor" />)}
+                  
+                  <div className="lg:w-[60%] flex flex-col gap-12 pb-16 pt-16 lg:pt-0">
+                     {[
+                       { stat: '₹24.8L', text: 'Unified cross-channel rev.' },
+                       { stat: '100.0%', text: 'No transaction gaps found.' },
+                       { stat: 'Tier 3', text: 'Advanced MTR scrubbing.' },
+                       { stat: '₹4.2L', text: 'Ready for GSTR filing.' }
+                     ].map((item, i) => (
+                        <AdvantageItem key={i} item={item} i={i} />
+                     ))}
                   </div>
+               </div>
+            </section>
+          </div>
+
+          {/* Wrapping White Background Sections */}
+          <div className="bg-white w-full z-20 relative pt-32 pb-32">
+            {/* Features Detailed Cards */}
+            <section id="features" className="px-6 max-w-[1400px] mx-auto w-full mb-32">
+              <div className="flex flex-col gap-12">
+                 {featureCards.map((card, i) => (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 50 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: "-100px" }}
+                      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                      key={i} 
+                      className={`bg-[#F5F5F5] rounded-[32px] overflow-hidden flex flex-col ${i % 2 === 1 ? 'lg:flex-row-reverse' : 'lg:flex-row'} group`}
+                    >
+                       <div className="p-12 md:p-20 lg:w-[55%] flex flex-col justify-center">
+                          <h4 className="text-[11px] font-bold tracking-[0.2em] text-[#6b6770] uppercase mb-6">{card.label}</h4>
+                          <h3 className="font-display text-[40px] md:text-[48px] font-medium text-black leading-[1.1] mb-6 tracking-tight max-w-[400px]">
+                             {card.title}
+                          </h3>
+                          <p className="text-[#6b6770] text-[17px] leading-relaxed max-w-[420px] mb-12">
+                             {card.desc}
+                          </p>
+                          <button onClick={onGetStarted} className="self-start flex items-center justify-center gap-2 bg-black text-white px-[22px] py-[12px] rounded-full font-medium text-sm hover:scale-105 transition-transform duration-300">
+                            Get Started <span className="bg-white text-black rounded-full p-[2px]"><ArrowRight className="w-3 h-3" /></span>
+                          </button>
+                       </div>
+                       <div className="lg:w-[45%] relative min-h-[400px] overflow-hidden">
+                          <div className="absolute top-12 left-12 text-[#6b6770] text-[16px] font-medium z-10">{card.idx}</div>
+                          <img src={card.img} alt={card.title} className="absolute inset-0 w-full h-full object-cover mix-blend-multiply opacity-90 group-hover:scale-105 transition-transform duration-1000 ease-out" />
+                       </div>
+                    </motion.div>
+                 ))}
+              </div>
+            </section>
+             
+             {/* 8. Pricing Section */}
+             <section id="pricing" className="px-6 max-w-7xl mx-auto w-full text-center mb-32">
+                <motion.div
+                   initial={{ opacity: 0, y: 20 }}
+                   whileInView={{ opacity: 1, y: 0 }}
+                   viewport={{ once: true, margin: "-100px" }}
+                   transition={{ duration: 0.8 }}
+                >
+                   <h4 className="text-[11px] font-bold tracking-[0.2em] text-[#6b6770] uppercase mb-4">PRICING</h4>
+                   <h2 className="font-display text-[48px] md:text-[56px] font-medium text-black mb-20 tracking-tight">
+                     Simple, Scalable Pricing.
+                   </h2>
+                </motion.div>
+
+                <div className="grid md:grid-cols-3 gap-8 items-stretch text-left">
+                   {/* Starter */}
+                   <motion.div 
+                      initial={{ opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: "-100px" }}
+                      transition={{ duration: 0.6, delay: 0.1 }}
+                      className="bg-[#F5F5F5] rounded-[24px] p-10 flex flex-col hover:shadow-xl transition-shadow duration-500"
+                   >
+                      <h3 className="font-display text-[28px] font-medium text-black mb-3">Starter</h3>
+                      <p className="text-[#6b6770] text-[15px] mb-8 min-h-[44px]">Choose the plan that fits your business stage.</p>
+                      <div className="w-full h-[1px] bg-black/10 mb-8"></div>
+                      <div className="mb-10">
+                         <span className="font-display text-[50px] font-medium text-black leading-none">₹3,060</span>
+                         <span className="text-[#6b6770] text-[20px]">/yr</span>
+                      </div>
+                      <ul className="space-y-5 mb-12 flex-1">
+                         {['3 files per month', 'Up to 5,000 orders', 'Email Support', 'Basic Analytics'].map((feat, i) => (
+                            <li key={i} className="flex items-center gap-4 text-black text-[15px]">
+                               <span className="w-1.5 h-1.5 rounded-full bg-black shrink-0"></span>
+                               {feat}
+                            </li>
+                         ))}
+                      </ul>
+                      <button onClick={onLogin} className="w-full py-4 rounded-full font-medium bg-black text-white hover:scale-105 transition-transform duration-300 flex items-center justify-center gap-2 text-sm">
+                         Sign Up <span className="bg-white text-black rounded-full p-[2px]"><ArrowRight className="w-3 h-3" /></span>
+                      </button>
+                   </motion.div>
+                   
+                   {/* Professional */}
+                   <motion.div 
+                      initial={{ opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: "-100px" }}
+                      transition={{ duration: 0.6, delay: 0.2 }}
+                      className="bg-black text-white rounded-[24px] p-10 flex flex-col transform md:-translate-y-4 shadow-2xl relative"
+                   >
+                      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 rounded-t-[24px]"></div>
+                      <h3 className="font-display text-[28px] font-medium mb-3 mt-2">Pro <span className="text-sm font-normal text-white/50 ml-2">Most Popular</span></h3>
+                      <p className="text-[#A1A1A1] text-[15px] mb-8 min-h-[44px]">Ideal for growing brands needing AI automation.</p>
+                      <div className="w-full h-[1px] bg-white/20 mb-8"></div>
+                      <div className="mb-10">
+                         <span className="font-display text-[50px] font-medium leading-none">₹15,300</span>
+                         <span className="text-[#A1A1A1] text-[20px]">/yr</span>
+                      </div>
+                      <ul className="space-y-5 mb-12 flex-1">
+                         {['10 files per month', 'Up to 25,000 orders', '24/7 Priority Support', 'AI Fraud Detection', 'Predictive Forecasting'].map((feat, i) => (
+                            <li key={i} className="flex items-center gap-4 text-white text-[15px]">
+                               <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0"></span>
+                               {feat}
+                            </li>
+                         ))}
+                      </ul>
+                      <button onClick={onGetStarted} className="w-full py-4 rounded-full font-medium bg-white text-black hover:scale-105 transition-transform duration-300 flex items-center justify-center gap-2 text-sm">
+                         Get Started <span className="bg-black text-white rounded-full p-[2px]"><ArrowRight className="w-3 h-3" /></span>
+                      </button>
+                   </motion.div>
+
+                   {/* Enterprise */}
+                   <motion.div 
+                      initial={{ opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: "-100px" }}
+                      transition={{ duration: 0.6, delay: 0.3 }}
+                      className="bg-[#F5F5F5] rounded-[24px] p-10 flex flex-col hover:shadow-xl transition-shadow duration-500"
+                   >
+                      <h3 className="font-display text-[28px] font-medium text-black mb-3">Enterprise</h3>
+                      <p className="text-[#6b6770] text-[15px] mb-8 min-h-[44px]">Highest volume handling and custom integrations.</p>
+                      <div className="w-full h-[1px] bg-black/10 mb-8"></div>
+                      <div className="mb-10">
+                         <span className="font-display text-[50px] font-medium text-black leading-none">₹50,989</span>
+                         <span className="text-[#6b6770] text-[20px]">/yr</span>
+                      </div>
+                      <ul className="space-y-5 mb-12 flex-1">
+                         {['30 files per month', 'Unlimited orders', '24/7 Call Support', 'Full API Access', 'Custom Integrations'].map((feat, i) => (
+                            <li key={i} className="flex items-center gap-4 text-black text-[15px]">
+                               <span className="w-1.5 h-1.5 rounded-full bg-black shrink-0"></span>
+                               {feat}
+                            </li>
+                         ))}
+                      </ul>
+                      <button onClick={onLogin} className="w-full py-4 rounded-full font-medium bg-black text-white hover:scale-105 transition-transform duration-300 flex items-center justify-center gap-2 text-sm">
+                         Contact Sales <span className="bg-white text-black rounded-full p-[2px]"><ArrowRight className="w-3 h-3" /></span>
+                      </button>
+                   </motion.div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+             </section>
 
-        <div className="section-divider"></div>
+             {/* 9. Testimonials Section */}
+             <section className="px-6 max-w-7xl mx-auto w-full text-center">
+                <motion.div
+                   initial={{ opacity: 0, y: 20 }}
+                   whileInView={{ opacity: 1, y: 0 }}
+                   viewport={{ once: true, margin: "-100px" }}
+                   transition={{ duration: 0.8 }}
+                >
+                   <h4 className="text-[11px] font-bold tracking-[0.2em] text-[#6b6770] uppercase mb-4">TESTIMONIALS</h4>
+                   <h2 className="font-display text-[48px] md:text-[56px] font-medium text-black mb-20 tracking-tight">
+                     Trusted by 500+ Enterprise Sellers.
+                   </h2>
+                </motion.div>
 
-        <section id="pricing" className="pricing">
-          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-            <div className="badge" style={{ marginBottom: '1.5rem' }}>Pricing</div>
-            <h2 className="section-title fade-in-on-scroll">Simple, Scalable Pricing</h2>
-            <p className="section-subtitle fade-in-on-scroll">Choose the plan that fits your business stage.</p>
-          </div>
-          <div className="pricing-grid">
-            <div className="pricing-card glass fade-in-on-scroll">
-              <div>
-                <h3>Starter</h3>
-                <div className="price">₹3,060<span>/yr</span></div>
-              </div>
-              <ul className="features-list">
-                <li><Check className="check" size={18} /> 3 files per month</li>
-                <li><Check className="check" size={18} /> Up to 5,000 orders</li>
-                <li><Check className="check" size={18} /> Email Support</li>
-                <li><Check className="check" size={18} /> Basic Analytics</li>
-              </ul>
-              <button onClick={onLogin} className="btn-outline">Choose Starter</button>
-            </div>
-
-            <div className="pricing-card glass pro fade-in-on-scroll">
-              <div>
-                <div className="badge" style={{ marginBottom: '1rem', background: 'linear-gradient(135deg, var(--primary), var(--accent))', color: 'white', border: 'none', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)' }}>Most Popular</div>
-                <h3>Pro</h3>
-                <div className="price">₹15,300<span>/yr</span></div>
-              </div>
-              <ul className="features-list">
-                <li><Check className="check" size={18} /> 10 files per month</li>
-                <li><Check className="check" size={18} /> Up to 25,000 orders</li>
-                <li><Check className="check" size={18} /> 24/7 Priority Support</li>
-                <li><Check className="check" size={18} /> AI Fraud Detection</li>
-                <li><Check className="check" size={18} /> Predictive Forecasting</li>
-              </ul>
-              <button onClick={onLogin} className="btn-primary">Choose Pro</button>
-            </div>
-
-            <div className="pricing-card glass fade-in-on-scroll">
-              <div>
-                <h3>Enterprise</h3>
-                <div className="price">₹50,989<span>/yr</span></div>
-              </div>
-              <ul className="features-list">
-                <li><Check className="check" size={18} /> 30 files per month</li>
-                <li><Check className="check" size={18} /> Unlimited orders</li>
-                <li><Check className="check" size={18} /> 24/7 Call Support</li>
-                <li><Check className="check" size={18} /> Full API Access</li>
-                <li><Check className="check" size={18} /> Custom Integrations</li>
-              </ul>
-              <button onClick={onLogin} className="btn-outline">Contact Sales</button>
-            </div>
-          </div>
-        </section>
-
-        <section id="faq" className="faq">
-          <div className="faq-container">
-            <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-              <div className="badge" style={{ marginBottom: '1.5rem' }}>Support</div>
-              <h2 className="section-title fade-in-on-scroll">Frequently Asked Questions</h2>
-              <p className="section-subtitle fade-in-on-scroll">Everything you need to know about SellerIQ Pro.</p>
-            </div>
-            <div className="faq-grid">
-              {[
-                { q: "How secure is my Amazon data?", a: "We use bank-level AES-256 encryption. Your data is processed in isolated environments and is never shared with third parties." },
-                { q: "Do you support international marketplaces?", a: "Yes, we support Amazon marketplaces across North America, Europe, and Asia, with full currency conversion." },
-                { q: "Can I cancel my subscription anytime?", a: "Absolutely. We offer a no-questions-asked cancellation policy. You can export your data before leaving." },
-                { q: "How accurate is the tax reconciliation?", a: "Our engine provides 99.9% accuracy, matching your Merchant Tax Reports directly with bank settlements." }
-              ].map((item, i) => (
-                <div key={i} className="fade-in-on-scroll">
-                  <div className={`faq-item glass ${openFaq === i ? 'active' : ''}`} onClick={() => setOpenFaq(openFaq === i ? null : i)} style={{ cursor: 'pointer' }}>
-                    <div className="faq-question" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3 style={{ margin: 0 }}>{item.q}</h3>
-                      <ChevronDown size={20} style={{ transform: openFaq === i ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }} />
-                    </div>
-                    <AnimatePresence initial={false}>
-                      {openFaq === i && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3, ease: 'easeInOut' }}
-                          style={{ overflow: 'hidden' }}
-                        >
-                          <div className="faq-answer" style={{ paddingTop: '1rem', paddingBottom: '0.5rem' }}>
-                            <p style={{ margin: 0, color: '#94a3b8', lineHeight: 1.6 }}>{item.a}</p>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                <div className="grid md:grid-cols-3 gap-8 text-left">
+                   {[
+                      { name: 'Rahul Sharma', role: 'CEO, TechGadgets India', quote: 'SellerIQ Pro saved us over 40 hours a month in tax reconciliation. The Amazon MTR sync is flawless.', img: 'https://files.peachworlds.com/website/75c5be76-066b-440f-b9fd-d171d58b5ecc/image-1927.png' },
+                      { name: 'Sarah Jenkins', role: 'Operations Head, GlobalTrade', quote: 'The risk scrubbing feature identified ₹12L in suspicious transactions within the first week. Essential tool.', img: 'https://files.peachworlds.com/website/6f436d36-874b-4f4e-9606-2f2b293f483f/image-1928.png' },
+                      { name: 'Amit Patel', role: 'Founder, HomeDecor Pro', quote: 'Predictive forecasting has completely changed how we manage inventory. No more stockouts during peak season.', img: 'https://files.peachworlds.com/website/3e5e307a-0d19-42cf-a655-039b2f946fd4/image-1929.png' }
+                   ].map((t, i) => (
+                      <motion.div 
+                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                         whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                         viewport={{ once: true, margin: "-100px" }}
+                         transition={{ duration: 0.6, delay: i * 0.15 }}
+                         key={i} 
+                         className="bg-[#F5F5F5] rounded-[24px] p-10 flex flex-col hover:shadow-xl transition-shadow duration-500 cursor-default"
+                      >
+                         <div className="flex items-center gap-4 mb-8">
+                            <img src={t.img} alt={t.name} className="w-[50px] h-[50px] rounded-full object-cover shadow-sm" />
+                            <div>
+                               <div className="font-medium text-black">{t.name}</div>
+                               <div className="text-[11px] font-bold tracking-widest text-[#6b6770] mt-1">{t.role}</div>
+                            </div>
+                         </div>
+                         <p className="text-black text-[18px] leading-relaxed">"{t.quote}"</p>
+                      </motion.div>
+                   ))}
                 </div>
-              ))}
-            </div>
+             </section>
           </div>
-        </section>
 
-        <div className="section-divider"></div>
+          {/* 10. CTA / Footer Section (Transparent) */}
+          <section className="px-6 pt-32 pb-24 max-w-7xl mx-auto w-full z-10">
+             <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.8 }}
+                className="flex flex-col items-start max-w-3xl mb-32"
+             >
+                <h2 className="font-display text-[64px] md:text-[80px] font-medium text-white leading-[1.05] tracking-tight drop-shadow-sm mb-12">
+                   Ready to Scale?
+                </h2>
+                <p className="text-[20px] text-white/80 mb-10 leading-relaxed font-medium">
+                   Have questions about enterprise integration? Our team is here to help. Contact us 24/7 for priority enterprise support.
+                </p>
+                <div className="flex items-center gap-6">
+                   <button onClick={onGetStarted} className="flex items-center gap-2 bg-white text-black px-[28px] py-[16px] rounded-full font-medium text-base hover:scale-105 transition-transform duration-300">
+                      Contact Sales Team <span className="bg-black text-white rounded-full p-[2px]"><ArrowRight className="w-4 h-4" /></span>
+                   </button>
+                </div>
+             </motion.div>
 
-        <section id="legal" className="legal-sections">
-          <div className="legal-grid fade-in-on-scroll">
-            <div className="legal-card glass">
-              <h3>Privacy Policy</h3>
-              <p>Your data privacy is our top priority. We use enterprise-grade encryption for all Amazon MTR and Shopify data flows. We never share your business intelligence with third parties.</p>
-              <ul>
-                <li>End-to-end data encryption</li>
-                <li>GDPR & CCPA Compliant</li>
-                <li>No data sharing with competitors</li>
-              </ul>
-            </div>
-            <div className="legal-card glass">
-              <h3>Terms of Service</h3>
-              <p>By using SellerIQ Pro, you agree to our fair usage policy. Our platform is designed for legitimate eCommerce businesses to automate their tax and risk analysis.</p>
-              <ul>
-                <li>99.9% Uptime SLA</li>
-                <li>Fair usage data limits</li>
-                <li>Monthly/Annual billing cycles</li>
-              </ul>
-            </div>
-          </div>
-        </section>
+             <div className="flex flex-col md:flex-row justify-between items-start border-t border-white/20 pt-16 mt-16 text-white/80">
+                <div className="max-w-[320px] mb-12 md:mb-0">
+                   <div className="text-[24px] font-display font-medium text-white mb-4">SellerIQ Pro</div>
+                   <p className="text-[15px] leading-relaxed mb-6">The enterprise standard for marketplace intelligence and automated tax compliance.</p>
+                   <a href="mailto:support@selleriq.pro" className="hover:text-white transition-colors block mb-12">support@selleriq.pro</a>
 
-        <section id="contact" className="contact">
-          <div className="contact-content fade-in-on-scroll">
-            <div className="badge" style={{ marginBottom: '1.5rem' }}>Contact Us</div>
-            <h2 className="section-title" style={{ marginBottom: '1rem' }}>Ready to Scale?</h2>
-            <p className="section-subtitle" style={{ marginBottom: '2.5rem' }}>Have questions about enterprise integration? Our team is here to help.</p>
-            <div className="contact-info">
-              <div className="contact-item">
-                <Zap className="text-primary" />
-                <span>support@selleriq.pro</span>
-              </div>
-              <div className="contact-item">
-                <ShieldCheck className="text-secondary" />
-                <span>Enterprise Support: 24/7 Priority</span>
-              </div>
-            </div>
-            <button onClick={onGetStarted} className="btn-primary" style={{ padding: '1.1rem 2.5rem', fontSize: '1.05rem' }}>Contact Sales Team</button>
-          </div>
-        </section>
-      </main>
-
-      <footer className="footer">
-        <div className="footer-container">
-          <div className="footer-main">
-            <div className="footer-brand">
-              <div style={{ marginBottom: '1.5rem' }}>
-                <img src="/selleriqpro-logo.png" alt="SellerIQ Pro" style={{ height: '56px', objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' }} />
-              </div>
-              <p>The enterprise standard for marketplace intelligence and automated tax compliance.</p>
-              <div className="social-links">
-                <a href="#" onClick={handleFutureLink} className="social-icon"><X size={20} /></a>
-                <a href="#" onClick={handleFutureLink} className="social-icon"><ExternalLink size={20} /></a>
-                <a href="#" onClick={handleFutureLink} className="social-icon"><Link size={20} /></a>
-              </div>
-            </div>
-            <div className="footer-links-grid">
-              <div className="link-group">
-                <h4>Product</h4>
-                <ul>
-                  <li><a href="#features">Features</a></li>
-                  <li><a href="#analytics">Analytics</a></li>
-                  <li><a href="#pricing">Pricing</a></li>
-                  <li><a href="#how-it-works">How it Works</a></li>
-                </ul>
-              </div>
-              <div className="link-group">
-                <h4>Company</h4>
-                <ul>
-                  <li><a href="#" onClick={handleFutureLink}>About Us</a></li>
-                  <li><a href="#" onClick={handleFutureLink}>Careers</a></li>
-                  <li><a href="#" onClick={handleFutureLink}>Security</a></li>
-                  <li><a href="#legal">Legal</a></li>
-                </ul>
-              </div>
-              <div className="link-group">
-                <h4>Resources</h4>
-                <ul>
-                  <li><a href="#" onClick={handleFutureLink}>Documentation</a></li>
-                  <li><a href="#" onClick={handleFutureLink}>Help Center</a></li>
-                  <li><a href="#" onClick={handleFutureLink}>API Reference</a></li>
-                  <li><a href="#" onClick={handleFutureLink}>Community</a></li>
-                </ul>
-              </div>
-            </div>
-            <div className="footer-newsletter">
-              <h4>Stay Updated</h4>
-              <p>Get the latest eCommerce insights delivered to your inbox.</p>
-              <form className="newsletter-form" onSubmit={handleSubscribe}>
-                <input type="email" placeholder="Enter your email" required />
-                <button type="submit" className="btn-primary">Subscribe</button>
-              </form>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            <p>&copy; 2026 SellerIQ Pro. All rights reserved.</p>
-            <div className="footer-legal">
-              <a href="#" onClick={handleFutureLink}>Privacy</a>
-              <a href="#" onClick={handleFutureLink}>Terms</a>
-              <a href="#" onClick={handleFutureLink}>Cookies</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+                   <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                      <div className="text-white text-sm font-medium mb-1">Stay Updated.</div>
+                      <div className="text-xs text-white/60 mb-4">Get the latest eCommerce insights delivered to your inbox.</div>
+                      <div className="flex gap-2">
+                         <input type="email" placeholder="Your email address" className="bg-black/50 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white/50 w-full" />
+                         <button className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/90 whitespace-nowrap">Subscribe</button>
+                      </div>
+                   </div>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-16 text-[14px]">
+                   <div className="flex flex-col gap-4">
+                      <div className="font-medium mb-2 uppercase tracking-widest text-[11px] text-white/60">Product</div>
+                      <a href="#features" className="hover:text-white transition-colors">Features</a>
+                      <a href="#analytics" className="hover:text-white transition-colors">Analytics</a>
+                      <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+                      <a href="#" className="hover:text-white transition-colors">How it Works</a>
+                   </div>
+                   <div className="flex flex-col gap-4">
+                      <div className="font-medium mb-2 uppercase tracking-widest text-[11px] text-white/60">Company</div>
+                      <a href="#" className="hover:text-white transition-colors">About Us</a>
+                      <a href="#" className="hover:text-white transition-colors">Careers</a>
+                      <a href="#" className="hover:text-white transition-colors">Security</a>
+                      <a href="#" className="hover:text-white transition-colors">Legal</a>
+                   </div>
+                   <div className="flex flex-col gap-4">
+                      <div className="font-medium mb-2 uppercase tracking-widest text-[11px] text-white/60">Resources</div>
+                      <a href="#" className="hover:text-white transition-colors">Documentation</a>
+                      <a href="#" className="hover:text-white transition-colors">Help Center</a>
+                      <a href="#" className="hover:text-white transition-colors">API Reference</a>
+                      <a href="#" className="hover:text-white transition-colors">Community</a>
+                   </div>
+                   <div className="flex flex-col gap-4">
+                      <div className="font-medium mb-2 uppercase tracking-widest text-[11px] text-white/60">Legal</div>
+                      <a href="#" className="hover:text-white transition-colors">Privacy</a>
+                      <a href="#" className="hover:text-white transition-colors">Terms</a>
+                      <a href="#" className="hover:text-white transition-colors">Cookies</a>
+                   </div>
+                </div>
+             </div>
+             <div className="border-t border-white/10 mt-16 pt-8 text-center text-[13px] text-white/50">
+                © 2026 SellerIQ Pro. All rights reserved.
+             </div>
+          </section>
+        </main>
+      </div>
     </div>
   );
 }

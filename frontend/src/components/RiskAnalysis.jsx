@@ -54,7 +54,7 @@ function RiskScoreBar({ score }) {
 function TransactionTable({ transactions }) {
   if (!transactions || transactions.length === 0) return <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '12px 0' }}>No transaction records found.</div>;
   return (
-    <div style={{ overflowX: 'auto', marginTop: 8 }}>
+    <div className="responsive-table-container" style={{ marginTop: 8 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
         <thead>
           <tr style={{ background: 'var(--bg-primary)' }}>
@@ -84,7 +84,7 @@ function TransactionTable({ transactions }) {
 function SkuBreakdownTable({ skus }) {
   if (!skus || skus.length === 0) return null;
   return (
-    <div style={{ overflowX: 'auto', marginTop: 8 }}>
+    <div className="responsive-table-container" style={{ marginTop: 8 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
         <thead>
           <tr style={{ background: 'var(--bg-primary)' }}>
@@ -499,7 +499,7 @@ export default function FraudAnalysis({ fraudData }) {
 
       {/* Summary Strip */}
       {!loading && data.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div className="siq-kpi-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
           {[
             { id: 'customers', label: 'Critical Customers Found', value: data.length, icon: <AlertTriangle size={18} color="var(--danger)" />, color: 'var(--danger)' },
             { id: 'transactions', label: 'Total Units Returned', value: totalRefundQty.toLocaleString(), icon: <Package size={18} color="var(--warning)" />, color: 'var(--warning)' },
@@ -534,7 +534,7 @@ export default function FraudAnalysis({ fraudData }) {
 
       {/* Charts Section */}
       {!loading && data.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+        <div className="siq-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
           <FraudTrendChart data={data} />
           <HighQuantityRefunders data={data} />
         </div>

@@ -90,7 +90,7 @@ const ERPDashboard = ({ rawData, filename, onReset }) => {
       </div>
 
       {/* MAIN */}
-      <div style={{ flex: 1, marginLeft: 280, padding: "40px", minWidth: 0 }}>
+      <div className="siq-dash-main" style={{ flex: 1, marginLeft: 280, padding: "40px", minWidth: 0 }}>
         <div style={{ marginBottom: 32, borderBottom: "1px solid #1e293b", paddingBottom: 24 }}>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#f8fafc", fontFamily: "sans-serif", textTransform: "uppercase" }}>
             {activeTab === "overview" && "Macro Logistics & Volume Metric"}
@@ -102,7 +102,7 @@ const ERPDashboard = ({ rawData, filename, onReset }) => {
 
         {activeTab === "overview" && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: 32 }}>
+            <div className="siq-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, marginBottom: 32 }}>
                <div style={{ background: ERP_SLATE, padding: 24, borderRadius: 8, borderLeft: `4px solid ${ERP_BLUE}` }}>
                  <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", letterSpacing: 1 }}>TOT_BULK_VOLUME</div>
                  <div style={{ fontSize: 36, fontWeight: 900, color: "#f8fafc", marginTop: 8 }}>{erpStats.macroVolume.toLocaleString()}<span style={{fontSize: 14, color: "#64748b", marginLeft: 8}}>UNITS</span></div>
@@ -122,33 +122,35 @@ const ERPDashboard = ({ rawData, filename, onReset }) => {
                 <AlertCircle size={20} color={ERP_WARNING} />
                 <h2 style={{ fontSize: 14, fontWeight: 800, color: "#e2e8f0", margin: 0, letterSpacing: 1 }}>SUPPLY CHAIN BOTTLENECKS (SIMULATED)</h2>
               </div>
-              <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid #334155", color: "#64748b", fontSize: 11 }}>
-                    <th style={{ padding: 12 }}>SUPPLIER / SKU NODE</th>
-                    <th style={{ padding: 12 }}>COMPLETED RECEIPTS</th>
-                    <th style={{ padding: 12 }}>DEFECT / REJECT COUNT</th>
-                    <th style={{ padding: 12 }}>COMPLIANCE SCORE</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {erpStats.vendorLogistics.map((v, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #0f172a" }}>
-                      <td style={{ padding: 16, fontWeight: 700, color: "#93c5fd" }}>{v.name}</td>
-                      <td style={{ padding: 16, color: "#10b981" }}>+{v.fulfilled.toLocaleString()}</td>
-                      <td style={{ padding: 16, color: ERP_WARNING }}>{v.defects.toLocaleString()}</td>
-                      <td style={{ padding: 16 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ width: 100, height: 6, background: "#0f172a", borderRadius: 3 }}>
-                            <div style={{ height: "100%", background: v.defectRate > 5 ? ERP_WARNING : "#10b981", width: `${Math.max(0, 100 - v.defectRate)}%`, borderRadius: 3 }} />
-                          </div>
-                          <span style={{ fontSize: 12, color: v.defectRate > 5 ? ERP_WARNING : "#10b981" }}>{(100 - v.defectRate).toFixed(1)}%</span>
-                        </div>
-                      </td>
+              <div className="responsive-table-container">
+                <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #334155", color: "#64748b", fontSize: 11 }}>
+                      <th style={{ padding: 12 }}>SUPPLIER / SKU NODE</th>
+                      <th style={{ padding: 12 }}>COMPLETED RECEIPTS</th>
+                      <th style={{ padding: 12 }}>DEFECT / REJECT COUNT</th>
+                      <th style={{ padding: 12 }}>COMPLIANCE SCORE</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {erpStats.vendorLogistics.map((v, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #0f172a" }}>
+                        <td style={{ padding: 16, fontWeight: 700, color: "#93c5fd" }}>{v.name}</td>
+                        <td style={{ padding: 16, color: "#10b981" }}>+{v.fulfilled.toLocaleString()}</td>
+                        <td style={{ padding: 16, color: ERP_WARNING }}>{v.defects.toLocaleString()}</td>
+                        <td style={{ padding: 16 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 100, height: 6, background: "#0f172a", borderRadius: 3 }}>
+                              <div style={{ height: "100%", background: v.defectRate > 5 ? ERP_WARNING : "#10b981", width: `${Math.max(0, 100 - v.defectRate)}%`, borderRadius: 3 }} />
+                            </div>
+                            <span style={{ fontSize: 12, color: v.defectRate > 5 ? ERP_WARNING : "#10b981" }}>{(100 - v.defectRate).toFixed(1)}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </>
         )}
@@ -175,7 +177,7 @@ const ERPDashboard = ({ rawData, filename, onReset }) => {
                <h2 style={{ fontSize: 16, fontWeight: 800, color: "#f8fafc", margin: 0, textTransform: "uppercase" }}>Freight Liability & Node Routes (Simulated LTL)</h2>
              </div>
              
-             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+             <div className="siq-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                {erpStats.freightRegions.map((f, i) => (
                  <div key={i} style={{ border: "1px solid #334155", padding: 20, borderRadius: 8, background: "#0f172a", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                    <div>

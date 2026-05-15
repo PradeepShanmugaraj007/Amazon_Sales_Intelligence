@@ -208,7 +208,7 @@ export default function InsightsPanel({ insights = [] }) {
                   {/* Expanded Content */}
                   {isOpen && (
                     <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px dashed #e2e8f0", animation: 'fadeIn 0.3s ease' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                      <div className="siq-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                          <div>
                             <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: 'uppercase', marginBottom: 8 }}>Neural Logic</div>
                             <p style={{ fontSize: 12, color: "#64748b", margin: 0, lineHeight: 1.6 }}>

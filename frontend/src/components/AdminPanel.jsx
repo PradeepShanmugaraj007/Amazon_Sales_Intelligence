@@ -208,7 +208,7 @@ const AdminPanel = ({ onLogout }) => {
               <div style={{ color: "#64748b", fontSize: 15, marginTop: 4 }}>Live registered subscriber metrics.</div>
             </div>
 
-            <div className="admin-grid" style={{ marginBottom: 40 }}>
+            <div className="siq-grid-4" style={{ marginBottom: 40 }}>
               <div className="stat-card">
                 <div style={{ background: "#e0e7ff", color: "#4f46e5", width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={20} /></div>
                 <div>
@@ -341,7 +341,7 @@ const AdminPanel = ({ onLogout }) => {
               </button>
             </div>
 
-            <div className="admin-grid" style={{ marginBottom: 40 }}>
+            <div className="siq-grid-4" style={{ marginBottom: 40 }}>
               {[
                 { label: "Active Subs", val: ALL_USERS.filter(u => u.sub_status === "Active").length, color: "#16a34a", bg: "#dcfce7", icon: CheckCircle },
                 { label: "Expiring Soon", val: ALL_USERS.filter(u => u.sub_status === "Expiring Soon").length, color: "#ca8a04", bg: "#fef9c3", icon: Bell },
@@ -440,7 +440,7 @@ const AdminPanel = ({ onLogout }) => {
               <h2 style={{ fontSize: 28, fontWeight: 900, color: "#0f172a", margin: "0" }}>Billing Engine</h2>
               <div style={{ color: "#64748b", fontSize: 15, marginTop: 4 }}>Manage subscription revenue, pricing tiers, and invoicing.</div>
             </div>
-            <div className="admin-grid" style={{ marginBottom: 32 }}>
+            <div className="siq-grid-4" style={{ marginBottom: 32 }}>
               <div className="stat-card">
                 <div style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>Monthly Recurring Revenue</div>
                 <div style={{ fontSize: 32, fontWeight: 900, color: "#0f172a" }}>₹{billingMetrics.mrr.toLocaleString('en-IN')}</div>
@@ -492,7 +492,7 @@ const AdminPanel = ({ onLogout }) => {
               <h2 style={{ fontSize: 28, fontWeight: 900, color: "#0f172a", margin: "0" }}>Global Settings</h2>
               <div style={{ color: "#64748b", fontSize: 15, marginTop: 4 }}>System configuration, API limits, and critical parameters.</div>
             </div>
-            <div className="dash-grid-2" style={{ gap: 24 }}>
+            <div className="siq-grid-2" style={{ gap: 24 }}>
               <div style={{ background: "white", borderRadius: 16, padding: 24, border: "1px solid #e2e8f0" }}>
                 <h3 style={{ marginTop: 0, fontSize: 16, fontWeight: 800, marginBottom: 16 }}>Platform Controls</h3>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 16, borderBottom: "1px solid #f1f5f9", marginBottom: 16 }}>
