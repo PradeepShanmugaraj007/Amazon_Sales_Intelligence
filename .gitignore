@@ -13,10 +13,11 @@ frontend/dist/
 
 # Environment variables
 .env
-backend/.env
-frontend/.env
 .env.local
 .env.*.local
+backend/.env
+frontend/.env
+frontend/.env.local
 
 # Python cache
 __pycache__/
@@ -26,11 +27,14 @@ __pycache__/
 .coverage
 htmlcov/
 
-# IDEs and Editors
+# IDEs, Editors, and AI Agent Artifacts
 .vscode/
 .idea/
+.agents/
+.continue/
 *.swp
 *.swo
+skills-lock.json
 
 # OS files
 .DS_Store
@@ -45,3 +49,7 @@ yarn-error.log*
 # Database
 *.sqlite3
 *.db
+
+# Temporary / scratch directories
+temp_landing_page/
+run.bat

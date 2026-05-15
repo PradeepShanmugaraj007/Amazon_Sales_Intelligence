@@ -3,14 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@react-oauth/google": "^0.12.2",
-    "@react-three/drei": "^9.122.0",
-    "@react-three/fiber": "^8.18.0",
     "axios": "^1.15.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
@@ -21,7 +23,6 @@
     "react-dom": "^18.3.1",
     "react-fast-marquee": "^1.6.5",
     "recharts": "^2.12.7",
-    "three": "^0.184.0",
     "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"
   },
