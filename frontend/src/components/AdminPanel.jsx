@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Users, Shield, Calendar, Clock, CreditCard, CheckCircle, Search, LogOut, ArrowUpRight, Bell, Database, Activity, Mail, Server, Settings, Cpu, HardDrive, TerminalSquare, TrendingUp, ToggleRight, ToggleLeft, DollarSign, Phone, Menu, X, AlertTriangle } from "lucide-react";
 import "../responsive_overrides.css";
+import { API_BASE_URL } from '../api';
 
 const AdminPanel = ({ onLogout }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,7 +22,7 @@ const AdminPanel = ({ onLogout }) => {
 
   useEffect(() => {
     if (adminTab === "hub" || adminTab === "billing" || adminTab === "monitoring") {
-      fetch('/api/v1/admin/users')
+      fetch(`${API_BASE_URL}/admin/users`)
         .then(r => r.json())
         .then(d => { if (d.success) setRegisteredUsers(d.users); })
         .catch(() => {});
@@ -319,7 +320,7 @@ const AdminPanel = ({ onLogout }) => {
                 onClick={async () => {
                    setIsLoading(true);
                    try {
-                     const res = await fetch('/api/v1/admin/send-expiry-warnings', { method: 'POST' });
+                     const res = await fetch(`${API_BASE_URL}/admin/send-expiry-warnings`, { method: 'POST' });
                      const data = await res.json();
                      setToast(`Successfully sent ${data.emails_sent} warning/promo emails.`);
                    } catch {

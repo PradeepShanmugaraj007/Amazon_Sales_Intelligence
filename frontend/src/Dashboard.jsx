@@ -20,7 +20,7 @@ import UploadSection from "./components/UploadSection";
 import Sidebar from "./components/Sidebar";
 import "./responsive_overrides.css";
 import AdminPanel from "./components/AdminPanel";
-import { analyzeReport } from "./api";
+import { analyzeReport, API_BASE_URL } from "./api";
 import { KpiCard, SectionHeader, Badge, InsightCard } from "./components/UIComponents";
 import FraudAnalysis, { CriticalRiskCard } from "./components/RiskAnalysis";
 import InsightsPanel from "./components/InsightsPanel";
@@ -1751,7 +1751,7 @@ function AppContent() {
       const token = sessionStorage.getItem('siq_auth_token');
       if (!token) return;
       try {
-        const res = await fetch('/api/v1/auth/plan-status', {
+        const res = await fetch(`${API_BASE_URL}/auth/plan-status`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) return;

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ShieldCheck, Lock, User, ArrowRight, BarChart2, TrendingUp, CheckCircle, CreditCard, Key, Briefcase, Phone, Mail, RotateCcw, AlertTriangle, MapPin, ChevronDown, Eye, EyeOff, Sparkles } from "lucide-react";
 import { GoogleLogin } from '@react-oauth/google';
+import { API_BASE_URL } from '../api';
 const loadRazorpay = () => new Promise((resolve) => {
   const script = document.createElement("script");
   script.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -109,7 +110,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
     }
 
     try {
-      const response = await fetch('/api/v1/payments/create-payment-order', {
+      const response = await fetch(`${API_BASE_URL}/payments/create-payment-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: totalAmount, currency: "INR" })
@@ -138,7 +139,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
         handler: async function (rzpResponse) {
           // Step 3: Call backend to create user & send email
           try {
-            const completeRes = await fetch('/api/v1/payments/complete-payment', {
+            const completeRes = await fetch(`${API_BASE_URL}/payments/complete-payment`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -186,7 +187,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
     setRegErr("");
     setOtpLoading(true);
     try {
-      const res = await fetch("/api/v1/auth/send-otp", {
+      const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: regEmail, name: regName }),
@@ -208,7 +209,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
     if (regPass !== regConfirmPass) { setRegErr("Passwords do not match."); return; }
     setRegLoading(true);
     try {
-      const res = await fetch("/api/v1/auth/register", {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: regName, email: regEmail, phone: regPhone, otp: regOtp, password: regPass }),
@@ -237,7 +238,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
     setIsLoading(true);
     setErr("");
     try {
-      const res = await fetch('/api/v1/auth/login', {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user, password: pass })
@@ -290,7 +291,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
     setIsLoading(true);
     setErr("");
     try {
-      const res = await fetch('/api/v1/auth/login', {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user, password: pass })
@@ -321,7 +322,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
     setIsLoading(true);
     setErr("");
     try {
-      const res = await fetch('/api/v1/auth/forgot-password', {
+      const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail })
@@ -343,7 +344,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
     setIsLoading(true);
     setErr("");
     try {
-      const res = await fetch('/api/v1/auth/google-login', {
+      const res = await fetch(`${API_BASE_URL}/auth/google-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential: credentialResponse.credential })
@@ -394,7 +395,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
 
   const handleGooglePrefill = async (credentialResponse) => {
     try {
-      const res = await fetch('/api/v1/auth/google-login', {
+      const res = await fetch(`${API_BASE_URL}/auth/google-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential: credentialResponse.credential })
@@ -614,7 +615,7 @@ const LoginSection = ({ onLogin, initialView = "plans", prefillData = null }) =>
                       <button
                         onClick={async () => {
                           try {
-                            const res = await fetch('/api/v1/auth/bypass-login', {
+                            const res = await fetch(`${API_BASE_URL}/auth/bypass-login`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ plan: plan.id })

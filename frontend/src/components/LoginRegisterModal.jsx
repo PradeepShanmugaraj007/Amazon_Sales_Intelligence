@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Mail, Lock, User, ArrowRight, CheckCircle, Eye, EyeOff, ShieldCheck, Sparkles, Phone } from "lucide-react";
 import { GoogleLogin } from "@react-oauth/google";
+import { API_BASE_URL } from '../api';
 
 const LoginRegisterModal = ({ onClose, onLogin }) => {
   const [tab, setTab] = useState("login"); // "login" | "register"
@@ -39,7 +40,7 @@ const LoginRegisterModal = ({ onClose, onLogin }) => {
     setLoginLoading(true);
     setLoginErr("");
     try {
-      const res = await fetch("/api/v1/auth/login", {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPass }),
@@ -68,7 +69,7 @@ const LoginRegisterModal = ({ onClose, onLogin }) => {
     setLoginLoading(true);
     setLoginErr("");
     try {
-      const res = await fetch("/api/v1/auth/google-login", {
+      const res = await fetch(`${API_BASE_URL}/auth/google-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential: credentialResponse.credential }),
@@ -100,7 +101,7 @@ const LoginRegisterModal = ({ onClose, onLogin }) => {
     setRegErr("");
     setOtpLoading(true);
     try {
-      const res = await fetch("/api/v1/auth/send-otp", {
+      const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: regEmail, name: regName }),
@@ -130,7 +131,7 @@ const LoginRegisterModal = ({ onClose, onLogin }) => {
     if (regPass !== regConfirmPass) { setRegErr("Passwords do not match."); return; }
     setRegLoading(true);
     try {
-      const res = await fetch("/api/v1/auth/register", {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: regName, email: regEmail, phone: regPhone, otp: regOtp, password: regPass }),
