@@ -17,8 +17,14 @@ class Settings:
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 1 Week
     
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
+    # Database — auto-convert to asyncpg driver for Render compatibility
+    _raw_db_url = os.getenv("DATABASE_URL", "")
+    # Render gives postgresql:// or postgres://, we need postgresql+asyncpg://
+    if _raw_db_url.startswith("postgres://"):
+        _raw_db_url = _raw_db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif _raw_db_url.startswith("postgresql://"):
+        _raw_db_url = _raw_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    DATABASE_URL: str = _raw_db_url
     
     # Razorpay
     RZP_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID")
